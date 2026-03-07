@@ -13,10 +13,12 @@ Sadly, due to many streaming services now providing a publically available API, 
 
 ### <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Full_Logo_RGB_Green.png" alt="spotify logo" style="height: 30px;"/>
 
+#### Setting up Spotify API
+
 > [!IMPORTANT]
 > Before you continue, Spotify Premium is required for spotify support. We apologize for any inconvience.
 
-- Click the green "Spotify" button
+- Click the green "Spotify" button.
 - To use Spotify, navigate to the [Developer Page](https://developers.spotify.com) and create a developer account.
 - Next, create an app with the Web API selected.
 - Copy and paste your client id into the application, and press "Login."
@@ -42,6 +44,9 @@ Sadly, due to many streaming services now providing a publically available API, 
 While we only have two options available many self hosted providers use Subsonic! :]
 
 We would love to add support to many more. However, it takes time, and there are sometimes issues with provider API's.
+
+## OS Compatability
+As of writing this, the application is only built for Windows. We will attempt to make native distrobutions for Linux and MacOS, but will not guarentee anything. All available installers are located inside of "Current Release" and will be seperated into OS, and file when applicable.
 
 ## Contact
 If you have any issues, please contact us at [contact@ashstashp.com](mailto:contact@ashstashp.com)
