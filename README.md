@@ -18,11 +18,13 @@ Sadly, due to many streaming services now providing a publically available API, 
 > [!IMPORTANT]
 > Before you continue, Spotify Premium is required for spotify support. We apologize for any inconvience.
 
-- Click the green "Spotify" button.
 - To use Spotify, navigate to the [Developer Page](https://developers.spotify.com) and create a developer account.
+- For "Return URL" enter "http://127.0.0.1:1420/callback".
 - Next, create an app with the Web API selected.
+
+#### Logging in with Spotify API
 - Copy and paste your client id into the application, and press "Login."
-- Lastly, follow the prompts on the browser.
+- Follow the prompts on the browser.
 
 > [!NOTE]
 > Multiple attempts may be required.
