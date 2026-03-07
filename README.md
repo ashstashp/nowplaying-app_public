@@ -1,6 +1,6 @@
 # NowPlaying App
 
-This application was developed by ashstashp™ and follow the licensing found on https://ashstashp.com/legal.html.
+This application was developed by ashstashp™ and follow the licensing found on https://ashstashp.com/legal.html, unless otherwise specified.
 
 ## What does this app do?
 This application (NowPlaying App) displays the song that is currently playing on any approved provider, in a clean format! This is designed for streamers, however, we can't exactly control how you use the app...
@@ -14,7 +14,7 @@ Sadly, due to many streaming services now providing a publically available API, 
 ### <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Full_Logo_RGB_Green.png" alt="spotify logo" style="height: 30px;"/>
 
 > [!IMPORTANT]
-> Before you continue. Spotify Premium is required for spotify support. We apologize for any inconvience.
+> Before you continue, Spotify Premium is required for spotify support. We apologize for any inconvience.
 
 - Click the green "Spotify" button
 - To use Spotify, navigate to the [Developer Page](https://developers.spotify.com) and create a developer account.
@@ -43,3 +43,7 @@ While we only have two options available many self hosted providers use Subsonic
 
 We would love to add support to many more. However, it takes time, and there are sometimes issues with provider API's.
 
+## Contact
+If you have any issues, please contact us at [contact@ashstashp.com](mailto:contact@ashstashp.com)
+>[!IMPORTANT]
+>Replies are not guarenteed, and will not originate from this email as of March 2026. The easiest way to get a reply is via our community servers on Discord, Flexer, and more! More information at https://orbital.ashstashp.com.
