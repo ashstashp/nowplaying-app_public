@@ -56,16 +56,20 @@ As of writing this, the application is only built for Windows. We will attempt t
 
 ### Login Screens:
 Subsonic API:
+
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/login-subsonic.png">
 
 Spotify API:
+
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/login-spotify.png">
 
 ### Not Playing Screens:
 Subsonic API:
+
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/not_playing-subsonic.png">
 
 Spotify API:
+
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/not_playing-spotify.png">
 
 ### Currently Playing:
@@ -76,12 +80,14 @@ Spotify API:
 > We would like to thank CappyDera for allowing us to use images of them using our app. Please visit [CappyDera's Twitch](https://twitch.tv/cappydera) to check out their content!
 
 Subsonic API:
+
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/close-subsonic.png">
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/close-subsonic_2.png">
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/far-subsonic_1.png">
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/far-subsonic_2.png">
 
 Spotify API:
+
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/close-spotify.png">
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/close-spotify_dera.png">
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/far-spotify_2_dera.png">
