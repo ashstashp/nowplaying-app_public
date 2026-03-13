@@ -70,7 +70,7 @@ Spotify API:
 
 ### Currently Playing:
 > [!IMPORTANT]
-> We, as in ashstashp, do not make own any artwork shown. Nor are we affiliated with their creators. Thank you for understanding.
+> We, as in ashstashp, do not make own any artwork shown. Nor are we affiliated with their creators. If you are the owner of any artwork displayed, and wish to have it removed, please contact us immediatly.
 
 > [!NOTE]
 > We would like to thank CappyDera for allowing us to use images of them using our app. Please visit [CappyDera's Twitch](https://twitch.tv/cappydera) to check out their content!
