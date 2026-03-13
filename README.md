@@ -29,10 +29,10 @@ Sadly, due to many streaming services now providing a publically available API, 
 > [!NOTE]
 > Multiple attempts may be required.
 
-### Subsonic
+### <img src="https://files.ashstashp.com/nowPlaying_app/promo/selfhosted_logo_full.png" style="height:40px;"/>
 
 > [!IMPORTANT]
-> We are not affiliated, nor accociated with Subsonic in any way. We only use their publically available API.
+> We are not affiliated, nor accociated with Subsonic in any way. We only use their publically available API. This includes the image above, which is custom made for reference purposes and is not affiliated with Subsonic in any way.
 
 >[!NOTE]
 > We do not support pirating, and ask that you do not use our applications or services if you have not legally obtained any music.
