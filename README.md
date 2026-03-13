@@ -31,7 +31,7 @@ Sadly, due to many streaming services now providing a publically available API, 
 
 ### Subsonic
 
-> [!NOTE]
+> [!IMPORTANT]
 > We are not affiliated, nor accociated with Subsonic in any way. We only use their publically available API.
 
 >[!NOTE]
