@@ -37,12 +37,27 @@ Sadly, due to many streaming services now providing a publically available API, 
 > Before you continue, Spotify Premium is required for spotify support. We apologize for any inconvience.
 
 - To use Spotify, navigate to the [Developer Page](https://developers.spotify.com) and create a developer account.
-- For "Return URL" enter "http://127.0.0.1:1420/callback".
-- Next, create an app with the Web API selected.
+- Navigate to the [Spotify Developer Dashboard](https://developers.spotify.com/dashboard)
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/spotify_1.png" />
+
+- Create an App
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/spotify_2.png" />
+
+- Enter in the required information
+  - For "Redirect URL" enter "http://127.0.0.1:1420/callback".
+  - For the API/SDK section, only Web API should be selected.
+  - Save the application.
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/spotify_3.png" />
 
 #### Logging in with Spotify API
+- Press the Spotify API button
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/select-spotify.png"/>
+  
 - Copy and paste your client id into the application, and press "Login."
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/login-spotify.png"/>
+  
 - Follow the prompts on the browser.
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/login-spotify_2.png"/>
 
 > [!NOTE]
 > Multiple attempts may be required.
@@ -56,9 +71,12 @@ Sadly, due to many streaming services now providing a publically available API, 
 > We do not support pirating, and ask that you do not use our applications or services if you have not legally obtained any music.
 
 - Click the orange "Subsonic" button.
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/select-subsonic.png"/>
+  
 - Enter your server url, version, username, and password.
-- The default version for the Subsonic server is 1.16.1, which is what servers like Navidrome use.
+  - The default version for the Subsonic server is 1.16.1, which is what servers like Navidrome use.
 - Press login.
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/login-subsonic.png"/>
 
 ### More Coming Soon!
 While we only have two options available many self hosted providers use Subsonic! :]
