@@ -9,7 +9,13 @@ This application (NowPlaying App) displays the song that is currently playing on
 >This application does not grant the right to publically display any information. Ensure what you are doing is allowed by the artist(s) of any music you are displaying.
 
 ## Installation
-- Download the installer for your operating system. These can be found in "Curent Release."
+> [!NOTE]
+> Windows is currently the only supported OS, and will default to this.
+- Navigate to the "Current Release" folder.
+- Open the folder of the current operating system you're using.
+- Open the folder of the installer you wish to use (there usually isn't a difference).
+- Click on the file inside of the folder.
+- Press the download button in the top right.
 - Run the installer, and follow the prompts.
 
 ## Approved Providers
