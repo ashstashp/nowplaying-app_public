@@ -15,7 +15,7 @@ This application (NowPlaying App) displays the song that is currently playing on
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_1.png" />
 
 - Open the folder of the current operating system you're using.
-- Open the folder of the installer you wish to use (there usually isn't a difference).\
+- Open the folder of the installer you wish to use (there usually isn't a difference).
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_3.png" />
   
 - Click on the file inside of the folder.
