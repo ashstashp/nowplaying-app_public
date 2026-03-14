@@ -29,7 +29,7 @@ This application (NowPlaying App) displays the song that is currently playing on
 ## Approved Providers
 Sadly, due to many streaming services now providing a publically available API, it is hard to add providers. However, we have some below:
 
-### <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Full_Logo_RGB_Green.png" alt="spotify logo" style="height: 30px;"/>
+### <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Full_Logo_RGB_Green.png" alt="spotify logo" style="height: 70px;"/>
 
 #### Setting up Spotify API
 
@@ -62,7 +62,7 @@ Sadly, due to many streaming services now providing a publically available API, 
 > [!NOTE]
 > Multiple attempts may be required.
 
-### <img src="https://files.ashstashp.com/nowPlaying_app/promo/selfhosted_logo_full.png" style="height:40px;"/>
+### <img src="https://files.ashstashp.com/nowPlaying_app/promo/selfhosted_logo_full.png" style="height:80px;"/>
 
 > [!IMPORTANT]
 > We are not affiliated, nor accociated with Subsonic in any way. We only use their publically available API. This includes the image above, which is custom made for reference purposes and is not affiliated with Subsonic in any way.
