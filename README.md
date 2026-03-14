@@ -12,10 +12,18 @@ This application (NowPlaying App) displays the song that is currently playing on
 > [!NOTE]
 > Windows is currently the only supported OS, and will default to this.
 - Navigate to the "Current Release" folder.
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_1.png" />
+
 - Open the folder of the current operating system you're using.
-- Open the folder of the installer you wish to use (there usually isn't a difference).
+- Open the folder of the installer you wish to use (there usually isn't a difference).\
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_3.png" />
+  
 - Click on the file inside of the folder.
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_4.png" />
+  
 - Press the download button in the top right.
+<img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_5.png" />
+  
 - Run the installer, and follow the prompts.
 
 ## Approved Providers
