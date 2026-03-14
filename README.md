@@ -8,6 +8,10 @@ This application (NowPlaying App) displays the song that is currently playing on
 >[!WARNING]
 >This application does not grant the right to publically display any information. Ensure what you are doing is allowed by the artist(s) of any music you are displaying.
 
+## Installing
+- Download the installer for your operating system. These can be found in "Curent Release."
+- Run the installer, and follow the prompts.
+
 ## Approved Providers
 Sadly, due to many streaming services now providing a publically available API, it is hard to add providers. However, we have some below:
 
