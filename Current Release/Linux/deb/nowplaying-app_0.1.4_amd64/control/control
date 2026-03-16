@@ -1,0 +1,9 @@
+Package: nowplaying-app
+Version: 0.1.4
+Architecture: amd64
+Installed-Size: 15061
+Maintainer: ashstashp
+Priority: optional
+Depends: libwebkit2gtk-4.1-0, libgtk-3-0
+Description: Application made to display current song on accepted providers.
+ (none)
