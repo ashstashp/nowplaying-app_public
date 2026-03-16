@@ -10,11 +10,14 @@ This application (NowPlaying App) displays the song that is currently playing on
 
 ## Installation
 > [!NOTE]
-> Windows is currently the only supported OS, and will default to this.
+> MacOS Is currently not supported. If you wish to build and bundle them, you are more than welcome. I will attempt to officially release them as soon as possible.
+
 - Navigate to the "Current Release" folder.
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_1.png" />
 
 - Open the folder of the current operating system you're using.
+
+### Windows
 - Open the folder of the installer you wish to use (there usually isn't a difference).
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_3.png" />
   
@@ -25,6 +28,12 @@ This application (NowPlaying App) displays the song that is currently playing on
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_5.png" />
   
 - Run the installer, and follow the prompts.
+
+### Linux
+> [!NOTE]
+> I don't have experience in this- please dont come after me T^T
+- Install the folder of your chosen version.
+- Run the application
 
 ## Approved Providers
 Sadly, due to many streaming services now providing a publically available API, it is hard to add providers. However, we have some below:
