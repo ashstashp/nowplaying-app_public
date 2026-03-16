@@ -7,7 +7,6 @@ export interface SubsonicTrack {
   artist: string;
   album: string;
   coverArt: string;
-  duration: number;
 }
 
 export function createSubsonicClient(baseUrl: string) {
@@ -42,7 +41,7 @@ export async function getNowPlayingSubsonic(
       // console.log(response.nowPlaying);
       return [];
     } else if (!response.nowPlaying.entry) {
-      const filler: SubsonicTrack[] = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", coverArt: "NONE", duration: -1}
+      const filler: SubsonicTrack[] = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", coverArt: "NONE"}
       // console.log(`Returning Filler:`);
       // console.log(filler);
       return filler;
