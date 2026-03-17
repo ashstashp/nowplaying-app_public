@@ -10,9 +10,17 @@ First public release. This version can connect with Spotify and Subsonic API ser
 - Subsonic API Connectivity
 
 ### v0.1.4
-Work in development. Fixed Spotify login issue. Added settings and logout button.
+Released. This version impoves user experience and customization.
 
 #### Changed made
 - Added Logout button
 - Added Settings
 - Fixed Spotify connection issues (Spotify required authorizing twice. Now requires it once most of the time.)
+
+### v0.1.5
+Released. This version imporves user experience.
+
+#### Changes made
+- Added Keyring Support
+    - Allows for saving ONE Spotify client ID
+    - Allows for saving ONE set of Subsonic server information (Server URL, Username, and Password)
