@@ -1,9 +1,9 @@
 <!-- TO DO:
-- Fix Spotify Conection Issues
-- Make keyrings/auto-login work 
+- Auto Login
 -->
 
 <script lang="ts">
+  import {message} from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
   import {
     createSubsonicClient,
@@ -42,6 +42,91 @@
   import { getSpotifyLoginUrl, exchangeCodeForTokens, getNowPlayingSpotify} from "../api/spotify";
   import { listen } from "@tauri-apps/api/event";
     import { show } from "@tauri-apps/api/app";
+    import { error } from "@sveltejs/kit";
+
+
+  // import {
+  //   initializeKeyring,
+  //   setPassword,
+  //   getPassword,
+  //   deletePassword,
+  //   hasPassword,
+  //   setSecret,
+  //   getSecret,
+  //   deleteSecret,
+  //   hasSecret
+  // } from 'tauri-plugin-keyring'
+
+  ////////////////////////////////////////////////////////////////
+  ///////////////////////// Helpful Stuff ////////////////////////
+  ////////////////////////////////////////////////////////////////
+
+  const defaultTimeoutTime = 5000;
+
+  async function showError(err: string) {
+    await message(err, {title: "Error", kind:"error"})
+  }
+
+  async function showWarn(err: string) {
+    await message(err, {title: "Warning", kind:"warning"})
+  }
+
+  async function asyncTimeout<T>(promise: Promise<T>, time:number): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Request Timed Out")), time)
+    )
+    ]);
+  }
+
+  ///////////////////////////////////////////////////////////////
+  ///////////////////////// Keyring Info ////////////////////////
+  ///////////////////////////////////////////////////////////////
+  
+  const appId = "com.ashstashp.nowplaying-app";
+
+  const spotifyKeyringId = "spotify-client-id";
+
+  async function addKeyring(userId:string, token: string) {
+    try {
+    await invoke("store_user_token", {appId, userId, token})
+    } catch (err) {
+      console.log(err);
+      showError(err);
+    }
+  }
+
+  async function getPassword(userId: string): Promise<string | null> {
+    try {
+    const response:string = await invoke("get_user_token", {appId, userId})
+    return response;
+    }
+    catch (error) {
+      console.error('Failed to get password:', error)
+      showError(error);
+      return null;
+    };
+  }
+
+  async function deletePassword(userId: string) {
+    try {
+      await invoke("delete_user_token", {appId, userId});
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  async function getSpotifyClientId() {
+    try {
+    const userId = spotifyKeyringId;
+    CLIENT_ID = await invoke("get_user_token", {appId, userId})
+    }
+    catch (error) {
+      // console.error('Failed to get password:', error)
+      showError(error);
+      return null;
+    };
+  }
 
   //////////////////////////////////////////////////////////////
   ///////////////////////// Client Info ////////////////////////
@@ -59,15 +144,15 @@
   }
 
   // Makes the stuff needed
-  let baseUrl = "";
+  let subsonicUrl = "";
   let username = "";
   let password = "";
   let version = "1.16.1";
   let imageUrl = fallback;
 
-  //////////////////////////////////////////////////////////////////
-  ///////////////////////// Navidrome Stuff ////////////////////////
-  //////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////
+  ///////////////////////// Subsonic Stuff ////////////////////////
+  /////////////////////////////////////////////////////////////////
   let client = null;
 
   let nowPlaying = null;
@@ -76,23 +161,33 @@
       if (version.trim() == "") {
         version = "1.16.1";
       }
-      const entries = await getNowPlayingSubsonic(client, username, password, version);
-      if (entries && entries[0]) {
-        nowPlaying = entries[0];
-        imageUrl = getCoverArtUrl(baseUrl, nowPlaying.coverArt, username, password, version)
-      } else if (entries.title == "Not Playing") {
-        nowPlaying = entries;
-        imageUrl = fallback;
-      } else {
+      try {
+        const entries = await getNowPlayingSubsonic(client, username, password, version);
+        if (entries && entries[0]) {
+          nowPlaying = entries[0];
+          imageUrl = getCoverArtUrl(subsonicUrl, nowPlaying.coverArt, username, password, version)
+        } else if (entries.title == "Not Playing") {
+          nowPlaying = entries;
+          imageUrl = fallback;
+        } else {
+          nowPlaying = null;
+          loggedIn = false;
+          showWarn("Login Failed")
+          //selectedProvider = "";
+        }
+      } catch(err) {
+        // if (err.name == "TypeError") {
+        //   err = {name: "Input Error", message: "Input empty or invalid"};
+        // } 
         nowPlaying = null;
         loggedIn = false;
-        //selectedProvider = "";
+        showWarn("Login Failed");
       }
   }
 
   function logIn() {
     loggedIn = true;
-    client = createSubsonicClient(baseUrl);
+    client = createSubsonicClient(subsonicUrl);
     refreshSubsonic();
   }
 
@@ -131,7 +226,7 @@
     globalCode = code;
 
     if (code) {
-      spotifyToken = await exchangeCodeForTokens(code, CLIENT_ID);
+      spotifyToken = await asyncTimeout(exchangeCodeForTokens(code, CLIENT_ID), defaultTimeoutTime);
       // console.log(spotifyToken);
     }
   });
@@ -152,31 +247,76 @@
       error = null;
     } catch (err) {
       // Errors come in object data types
-      if (!err.message.includes("Missing access token")){
-      console.log("Non Access Token Error")
-      nowPlaying = null;
+      let errorCount = 0;
+      const errorLimit = 5;
       error = err;
+
+      console.log("Err Value")
+      console.log(err);
+      console.log(err.name);
+      console.log(err.message);
+
+      console.log("\nLINE BREAK\n");
+
+      console.log("Error Value")
+      console.log(error);
+      console.log(error.name);
+      console.log(error.message);
+
+      console.log("\nLINE BREAK\n");
+      while (errorCount < errorLimit) {
+        // Displays Error Count
+        console.log("Error Count: " + errorCount);
+
+        // Checks if error is not a Missing access token error
+        if (!error.message.toLowerCase().includes("missing access token")){
+          // Informs of non access token error
+          console.log("Non Access Token Error");
+
+          // "Restarts" app
+          nowPlaying = null;
+          loggedIn = false;
+          selectProvider("");
+
+          // Exits loop
+          break;
+        } 
+        // If is Missing access token error
+        else {
+          // Warns that is access token error
+          console.log("Access token error");
+          console.log("Fetching new token.");
+
+          // Grabs a new access token
+          spotifyToken = await exchangeCodeForTokens(globalCode, CLIENT_ID);
+          console.log(spotifyToken);
+
+          // If token is an error, and not invalid_grant error
+          if (spotifyToken.error) {
+            if (spotifyToken.error != "invalid_grant") {
+
+              // Sets error to the token error
+              error = {name: spotifyToken.error, message: spotifyToken.error_description};
+              console.log("Spotify Error:")
+              console.log(error);
+            }
+          }
+        }
+        // console.log("error:");
+        // console.log(err);
+        // console.log("Error Message:")
+        // console.log(err.message);
+        // console.log("Message type:")
+        // console.log(typeof(err.message));
+        errorCount++;
+      }
+      nowPlaying = null;
       loggedIn = false;
       selectProvider("");
-      } else if (errorCount > 1){
-        console.log("Error Limit Reached");
-        nowPlaying = null;
-        error = err;
-        loggedIn = false;
-        selectProvider("");
-      } else {
-        error = null;
-        console.log("Access token error");
-        console.log("Fetching new token.");
-        spotifyToken = await exchangeCodeForTokens(globalCode, CLIENT_ID);
+      if (errorCount >= errorLimit) {
+        error = {name: "error_limit", message: "Error limit reached or Request timed out"}
       }
-      console.log("error:");
-      console.log(err);
-      // console.log("Error Message:")
-      // console.log(err.message);
-      // console.log("Message type:")
-      // console.log(typeof(err.message));
-      errorCount++;
+      showError(error.name + ": " + error.message);
     }
   }
 
@@ -195,7 +335,7 @@
   let fontSize = 16;
   let showSettings = false;
   let showLogoutButton = true;
-  const appVersion = "v0.1.4";
+  const appVersion = "v0.1.5";
 
   async function openLegal() {
     const url = "https://ashstashp.com/legal.html"
@@ -304,6 +444,8 @@
     {/if}
     <!-- Restore Defaults Button-->
     <button class="button" style="font-size: {fontSize}px" on:click={restoreDefaults}>Restore Defaults</button>
+    <!-- Test Error Popup -->
+    <button class="button" style="font-size: {fontSize}px" on:click={() => {showError("Test Error")}}>Test Error Popup</button>
     <!-- Return Button -->
     <button class="button" style="font-size: {fontSize}px" on:click={toggleSettings}>Back</button>
   </div>
@@ -359,6 +501,9 @@
         <input style="font-size: {fontSize}px" bind:value={CLIENT_ID} placeholder="Enter your Client ID"/>
         <button class="button" style="font-size: {fontSize}px; background-color: #1ED760" type="submit">Login</button>
       </form>
+      <button class="button" style="font-size: {fontSize}px" on:click={() => {addKeyring(spotifyKeyringId, CLIENT_ID)}}>Save Client ID</button>
+      <button class="button" style="font-size: {fontSize}px" on:click={getSpotifyClientId}>Load Client ID</button>
+      <button class="button" style="font-size: {fontSize}px" on:click={() => {deletePassword(spotifyKeyringId)}}>Delete Client ID</button>
       <button class="button" style="font-size: {fontSize}px" on:click={() => {selectProvider("")}}>Back</button>
     </div>
 
@@ -366,12 +511,25 @@
   {:else if selectedProvider == "subsonic"}
     <div class="loginContainer" >
       <form on:submit={logIn} style="display: flex; flex-direction: column;">
-        <input style="font-size: {fontSize}px" bind:value={baseUrl} placeholder="Enter your Server URL"/>
+        <input style="font-size: {fontSize}px" bind:value={subsonicUrl} placeholder="Enter your Server URL"/>
         <input style="font-size: {fontSize}px" bind:value={version} placeholder="Enter your Server Version (Default is 1.16.1)"/>
         <input style="font-size: {fontSize}px" bind:value={username} placeholder="Enter your Username"/>
         <input style="font-size: {fontSize}px" type="password" bind:value={password} placeholder="Enter your Password"/>
         <button class="button" style="font-size: {fontSize}px" type="submit">Login</button>
       </form>
+      <button class="button" style="font-size: {fontSize}px" on:click={() => {
+        addKeyring("subsonic-server", subsonicUrl);
+        addKeyring("subsonic-user", username);
+        addKeyring("subsonic-password", password);}}>Save Subsonic Login</button>
+      <button class="button" style="font-size: {fontSize}px" on:click={() => {
+          getPassword("subsonic-server").then(url => subsonicUrl = url);
+          getPassword("subsonic-user").then(user => username = user);
+          getPassword("subsonic-password").then(pass => password = pass);
+      }}>Load Subsonic Login</button>
+      <button class="button" style="font-size: {fontSize}px" on:click={() => {
+        deletePassword("subsonic-server");
+        deletePassword("subsonic-user");
+        deletePassword("subsonic-password")}}>Delete Subsonic Login</button>
       <button class="button" style="font-size: {fontSize}px" on:click={() => {selectProvider("")}}>Back</button>
     </div>
   {/if}

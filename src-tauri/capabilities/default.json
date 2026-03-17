@@ -1,4 +1,3 @@
-
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
@@ -9,6 +8,15 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "fs:default"
+    "keyring:allow-initialize-keyring",
+    "keyring:allow-set-password",
+    "keyring:allow-get-password",
+    "keyring:allow-delete-password",
+    "keyring:allow-has-password",
+    "keyring:allow-set-secret",
+    "keyring:allow-get-secret",
+    "keyring:allow-delete-secret",
+    "keyring:allow-has-secret",
+    "dialog:default"
   ]
 }

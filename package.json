@@ -1,6 +1,6 @@
 {
   "name": "nowplaying-app",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "",
   "type": "module",
   "scripts": {
@@ -14,9 +14,11 @@
   "license": "MIT",
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-opener": "^2",
-    "axios": "^1.13.6"
+    "axios": "^1.13.6",
+    "tauri-plugin-keyring-api": "^0.1.1"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",
