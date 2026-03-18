@@ -10,7 +10,7 @@ This application (NowPlaying App) displays the song that is currently playing on
 
 ## Installation
 > [!NOTE]
-> MacOS Is currently not supported. If you wish to build and bundle them, you are more than welcome. I will attempt to officially release them as soon as possible.
+> Windows is currently the only supported version. I don't have a Mac machiene, and Linuix is being a pain to work with rn.
 
 - Navigate to the "Current Release" folder.
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/installation_1.png" />
@@ -29,18 +29,12 @@ This application (NowPlaying App) displays the song that is currently playing on
   
 - Run the installer, and follow the prompts.
 
-### Linux
-> [!NOTE]
-> I don't have experience in this- please dont come after me T^T
-- Install the folder of your chosen version.
-- Run the application
-
-## Approved Providers
+# Approved Providers
 Sadly, due to many streaming services now providing a publically available API, it is hard to add providers. However, we have some below:
 
-### <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Full_Logo_RGB_Green.png" alt="spotify logo" style="height: 70px;"/>
+## <img src="https://storage.googleapis.com/pr-newsroom-wp/1/2023/05/Spotify_Full_Logo_RGB_Green.png" alt="spotify logo" style="height: 70px;"/>
 
-#### Setting up Spotify API
+### Setup
 
 > [!IMPORTANT]
 > Before you continue, Spotify Premium is required for spotify support. We apologize for any inconvience.
@@ -58,7 +52,7 @@ Sadly, due to many streaming services now providing a publically available API, 
   - Save the application.
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/spotify_3.png" />
 
-#### Logging in with Spotify API
+### Logging in
 - Press the Spotify API button
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/select-spotify.png"/>
   
@@ -68,16 +62,28 @@ Sadly, due to many streaming services now providing a publically available API, 
 - Follow the prompts on the browser.
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/login-spotify_2.png"/>
 
-> [!NOTE]
-> Multiple attempts may be required.
+> [!WARNING]
+> If you get a blank screen when utalizing the Spotify API, this is because no song is playing. This feature is unintentional, but probably won't be removed. There are two ways to fix it:
+>
+> 1) Press "Cancel" on the authorization screen, and wait for the error.
+> 2) Play music on your Spotify account, and wait for the screen to update.
 
-### <img src="https://files.ashstashp.com/nowPlaying_app/promo/selfhosted_logo_full.png" style="height:80px;"/>
+### Settings
+Starting in version v0.1.5, you can save your Spotify client id to a secure keyring on your device, and load it again later.
+
+- To save, press the "Save Client ID" button.
+- To load, press the "Load Client ID" button.
+- To delet, press the "Delete Saved Client ID" button.
+
+## <img src="https://files.ashstashp.com/nowPlaying_app/promo/selfhosted_logo_full.png" style="height:80px;"/>
 
 > [!IMPORTANT]
 > We are not affiliated, nor accociated with Subsonic in any way. We only use their publically available API. This includes the image above, which is custom made for reference purposes and is not affiliated with Subsonic in any way.
 
 >[!NOTE]
 > We do not support pirating, and ask that you do not use our applications or services if you have not legally obtained any music.
+
+### Logging in
 
 - Click the orange "Subsonic" button.
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/select-subsonic.png"/>
@@ -87,15 +93,61 @@ Sadly, due to many streaming services now providing a publically available API, 
 - Press login.
 <img src="https://files.ashstashp.com/nowPlaying_app/instructions/login-subsonic.png"/>
 
-### More Coming Soon!
+### Settings:
+Starting in version v0.1.5, you could save your Subsonic login information to a secure keyring on your device.
+
+> [!NOTE]
+> Uh, kinda forgot to save the server version too. I will fix this in the next update.
+
+- To save, press the "Save Subsonic Login" button.
+- To load, press the "Load Subsonic Login" button.
+- To delete, press the "Delete Subsonic Login" button.
+
+## More Coming Soon!
 While we only have two options available many self hosted providers use Subsonic! :]
 
 We would love to add support to many more. However, it takes time, and there are sometimes issues with provider API's.
 
-## OS Compatability
-As of writing this, the application is only built for Windows. We will attempt to make native distrobutions for Linux and MacOS, but will not guarentee anything. All available installers are located inside of "Current Release" and will be seperated into OS, and file when applicable.
+# App Settings:
+Starting in v0.1.4, we added a settings tab. You can edit, and save settings for the app here. Below will be a detailed description on what each setting does.
 
-## Images:
+### Font Size:
+While this is kinda self explanitory, the way it works might confuse people.
+
+The default value is 16px. The font size is limited to a minimum of 1px. This is the "Base" font size, most font elements are changed based on this value (from +8 to +16 I believe).
+All icons are also affected by this value, but it's much less noticable due to their size.
+
+### Art Size:
+The size of the album art is 200px^2. The album art size is limited to a minimum of 1px^2. This is the actual image size, and only affects the album art image. There is also a preview of the song you are currently playing available.
+
+### Show Logout button:
+Whether or not the logout button is visible on the Now Playing screen.
+
+The default value is true, but can be changed to false.
+
+### Auto Login:
+Whether or not the app tries to log into your last used provider on launch. Apart of the Quality of Life (QOL) features.
+
+When enabled, the app will attempt to connect to your last used provider with the saved credentials. This can be disabled.
+
+### Logout:
+Visible only when logged in, will log you out of any current used service. Does not affect auto login features.
+
+### Restore Defaults:
+Restores and saves the default settings.
+
+### Test Error Popup:
+Throws a popup error. Made for dev purposes, and I'm too lazy to remove from public releases.
+
+### Save and Exit:
+Will save the settings to work on next launch, then return to your previous screen. 
+> [!NOTE]
+> Reloading the application without saving will not save any settings.
+
+# OS Compatability
+As of writing this, the application is only built for Windows. We will attempt to make native distrobutions for Linux and MacOS, but will not guarentee anything. All available installers are located inside of both "Current Release" and "Releases," and will be seperated into OS and file when applicable.
+
+# Images:
 ### The HomeScreen:
 <img src="https://files.ashstashp.com/nowPlaying_app/promo/homescreen.png">
 
