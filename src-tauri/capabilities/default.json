@@ -17,6 +17,13 @@
     "keyring:allow-get-secret",
     "keyring:allow-delete-secret",
     "keyring:allow-has-secret",
-    "dialog:default"
+    "dialog:default",
+    "fs:default",
+    "fs:allow-appdata-read-recursive",
+    "fs:allow-appdata-write-recursive",
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$APPDATA/*" }]
+    }
   ]
 }

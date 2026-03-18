@@ -31,13 +31,6 @@ async fn store_user_token(
     //     .initialize_service(app)
     //     .map_err(|e| e.to_string())?;
 
-    
-    // Ensures keyring is overrided
-    let exists = app.keyring().exists(&user_id, tauri_plugin_keyring::CredentialType::Password).map_err(|e| e.to_string())?;
-    if exists {
-        app.keyring().delete(&user_id, tauri_plugin_keyring::CredentialType::Password);
-    }
-
     // Store the token securely
     app.keyring()
         .set(
@@ -64,8 +57,8 @@ async fn get_user_token(app: tauri::AppHandle, user_id: String) -> Result<String
 
 #[derive(Default)]
 struct MyState {
-  s: std::sync::Mutex<String>,
-  t: std::sync::Mutex<std::collections::HashMap<String, String>>,
+    s: std::sync::Mutex<String>,
+    t: std::sync::Mutex<std::collections::HashMap<String, String>>,
 }
 // remember to call `.manage(MyState::default())`
 #[tauri::command]
@@ -77,6 +70,7 @@ async fn delete_user_token(app: tauri::AppHandle, user_id: String) -> Result<(),
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_keyring::init())
         .setup(|app| {

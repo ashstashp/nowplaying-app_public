@@ -1,9 +1,0 @@
-[Desktop Entry]
-Categories=
-Comment=Application made to display current song on accepted providers.
-Exec=nowplaying-app_public
-StartupWMClass=nowplaying-app_public
-Icon=nowplaying-app_public
-Name=nowplaying-app
-Terminal=false
-Type=Application

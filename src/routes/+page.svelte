@@ -11,6 +11,8 @@
     getCoverArtUrl
   } from "../api/subsonic";
 
+  import { readFile, writeFile } from "../api/storage";
+
   // Fallback Image (Notplaying Icon)
   import fallback from "../assets/icons/musical-note-outline.svg"
 
@@ -43,6 +45,8 @@
   import { listen } from "@tauri-apps/api/event";
     import { show } from "@tauri-apps/api/app";
     import { error } from "@sveltejs/kit";
+    import { read } from "$app/server";
+    import { loadTokens } from "../oauth/storage";
 
 
   // import {
@@ -158,6 +162,10 @@
   let nowPlaying = null;
 
   async function refreshSubsonic() {
+      if (autoLogin) {
+        writeFile("provider", "subsonic", "client");
+      } 
+
       if (version.trim() == "") {
         version = "1.16.1";
       }
@@ -185,7 +193,7 @@
       }
   }
 
-  function logIn() {
+  function connectSubsonic() {
     loggedIn = true;
     client = createSubsonicClient(subsonicUrl);
     refreshSubsonic();
@@ -197,8 +205,6 @@
   ////////////////////////////////////////////////////////////////
 
   let CLIENT_ID = "";
-
-  let errorCount = 0;
 
   interface SpotifyToken {
     access_token: string;
@@ -232,6 +238,7 @@
   });
 
   export async function connectSpotify() {
+
     const url = await getSpotifyLoginUrl(CLIENT_ID);
 
     await invoke("open_in_browser", { url });
@@ -239,6 +246,10 @@
   }
 
   async function refreshSpotify() {
+    if (autoLogin) {
+      writeFile("provider", "spotify", "client");
+    } 
+
     let error = null;
     try {
       const result = await spotifyNowPlaying();
@@ -248,30 +259,30 @@
     } catch (err) {
       // Errors come in object data types
       let errorCount = 0;
-      const errorLimit = 5;
+      const errorLimit = 20;
       error = err;
 
-      console.log("Err Value")
-      console.log(err);
-      console.log(err.name);
-      console.log(err.message);
+      // console.log("Err Value")
+      // console.log(err);
+      // console.log(err.name);
+      // console.log(err.message);
 
-      console.log("\nLINE BREAK\n");
+      // console.log("\nLINE BREAK\n");
 
-      console.log("Error Value")
-      console.log(error);
-      console.log(error.name);
-      console.log(error.message);
+      // console.log("Error Value")
+      // console.log(error);
+      // console.log(error.name);
+      // console.log(error.message);
 
-      console.log("\nLINE BREAK\n");
+      // console.log("\nLINE BREAK\n");
       while (errorCount < errorLimit) {
         // Displays Error Count
-        console.log("Error Count: " + errorCount);
+        // console.log("Error Count: " + errorCount);
 
         // Checks if error is not a Missing access token error
         if (!error.message.toLowerCase().includes("missing access token")){
           // Informs of non access token error
-          console.log("Non Access Token Error");
+          // console.log("Non Access Token Error");
 
           // "Restarts" app
           nowPlaying = null;
@@ -284,12 +295,12 @@
         // If is Missing access token error
         else {
           // Warns that is access token error
-          console.log("Access token error");
-          console.log("Fetching new token.");
+          // console.log("Access token error");
+          // console.log("Fetching new token.");
 
           // Grabs a new access token
           spotifyToken = await exchangeCodeForTokens(globalCode, CLIENT_ID);
-          console.log(spotifyToken);
+          // console.log(spotifyToken);
 
           // If token is an error, and not invalid_grant error
           if (spotifyToken.error) {
@@ -297,8 +308,8 @@
 
               // Sets error to the token error
               error = {name: spotifyToken.error, message: spotifyToken.error_description};
-              console.log("Spotify Error:")
-              console.log(error);
+              // console.log("Spotify Error:")
+              // console.log(error);
             }
           }
         }
@@ -320,6 +331,8 @@
     }
   }
 
+  // refresh stuff
+
   async function refresh() {
     if (selectedProvider == "subsonic" && loggedIn) {
       refreshSubsonic();
@@ -335,7 +348,8 @@
   let fontSize = 16;
   let showSettings = false;
   let showLogoutButton = true;
-  const appVersion = "v0.1.5";
+  let autoLogin = false;
+  const appVersion = "v0.1.6";
 
   async function openLegal() {
     const url = "https://ashstashp.com/legal.html"
@@ -344,9 +358,14 @@
   }
 
   
-  // Toggle settings screen
+  // Toggle Logout Button Visibility
   function toggleShowLogoutButton() {
     showLogoutButton = !showLogoutButton;
+  }
+
+  // Toggle AutoLogin feature
+  function toggleAutoLogin() {
+    autoLogin = !autoLogin;
   }
 
   // Toggle settings screen
@@ -376,11 +395,90 @@
     showLogoutButton = true;
     fontSize = 16;
     artSize = 200;
+    autoLogin = false;
+    updateSettingsFiles();
+  }
+
+  function saveSettings() {
+    updateSettingsFiles();
+    toggleSettings();
+  }
+
+  async function updateSettingsFiles() {
+    await writeFile("fontSize", fontSize.toString(), "settings");
+    await writeFile("artSize", artSize.toString(), "settings");
+    await writeFile("showLogoutButton", showLogoutButton.toString(), "settings");
+    await writeFile("autoLogin", autoLogin.toString(), "settings");
+  }
+
+  async function loadSettingsFiles() {
+    fontSize = Number(await readFile("fontSize", "settings"));
+    artSize = Number(await readFile("artSize", "settings"));
+
+    const whatShowLogoutButton = await readFile("showLogoutButton", "settings")
+    if (whatShowLogoutButton == "true" || whatShowLogoutButton == "truee") {
+      showLogoutButton = true;
+      // console.log(await readFile("showLogoutButton", "settings") + " == true");
+    } else {
+      showLogoutButton = false;
+      // console.log(await readFile("showLogoutButton", "settings") + " != true");
+    };
+
+    const whatAutoLogin = await readFile("autoLogin", "settings")
+    if (whatAutoLogin == "true" || whatAutoLogin == "truee") {
+      autoLogin = true;
+      runAutoLogin();
+      // console.log(await readFile("autoLogin", "settings") + " == true")
+    } else {
+      autoLogin = false;
+      // console.log(await readFile("autoLogin", "settings") + " != true")
+    };
+  }
+
+  try {
+    loadSettingsFiles();
+  } catch (err) {
+    showError("Failed to load saved settings.\n"+err);
+  }
+
+  async function runAutoLogin() {
+    // Incase of errors cause yk-
+    try {
+      // Gets provider
+      selectedProvider = await readFile("provider", "client")
+      // Checks if provider is spotify
+      if (selectedProvider == "spotify") {
+        // Gets spotify client ID (keyring)
+        await getSpotifyClientId();
+        // Connects to spotify
+        await connectSpotify();
+      } 
+      // Checks if provider is subsonic
+      else if (selectedProvider == "subsonic") {
+        // Gets subsonic URL, username, and password (keyrings)
+        subsonicUrl = await getPassword("subsonic-server");
+        username = await getPassword("subsonic-user");
+        password = await getPassword("subsonic-password");
+
+        // Connects to subsonic
+        connectSubsonic();
+      } else {
+        throw Error("INVALID_PROVIDER");
+      }
+    } catch(err) {
+      showError("Auto Login Failed:\n" + err);
+      // console.log(selectedProvider);
+      selectProvider("");
+      loggedIn = false;
+    }
   }
 
   // Refresh content
   setInterval(refresh, 3000);
   refresh();
+
+  // File Stuff
+  // writeFile("TestTextFile", "This is a Text").then(() => readFile("TestTextFile"));
 
 </script>
 
@@ -433,6 +531,14 @@
         <p style="font-size: {fontSize}px; color: {showLogoutButton? "#0f0" : "#f00"};">{showLogoutButton}</p>
       </button>
     </div>
+    <!-- Quality of Life Features -->
+    <div style="display:flex; flex-direction: column;">
+      <h1 style="font-size: {fontSize + 16}px">QOL Features:</h1>
+      <button class="button" style="font-size: {fontSize}px; display:flex; flex-direction: row; justify-content: space-between;" on:click={toggleAutoLogin}>
+        <p style="font-size: {fontSize}px; test-align:left;">Auto Login:</p>
+        <p style="font-size: {fontSize}px; color: {autoLogin? "#0f0" : "#f00"};">{autoLogin}</p>
+      </button>
+    </div>
 
     <br>
     <!-- Current App Version -->
@@ -446,8 +552,8 @@
     <button class="button" style="font-size: {fontSize}px" on:click={restoreDefaults}>Restore Defaults</button>
     <!-- Test Error Popup -->
     <button class="button" style="font-size: {fontSize}px" on:click={() => {showError("Test Error")}}>Test Error Popup</button>
-    <!-- Return Button -->
-    <button class="button" style="font-size: {fontSize}px" on:click={toggleSettings}>Back</button>
+    <!-- Save+Exit Button -->
+    <button class="button" style="font-size: {fontSize}px" on:click={saveSettings}>Save and Exit</button>
   </div>
 {/snippet}
 
@@ -503,14 +609,14 @@
       </form>
       <button class="button" style="font-size: {fontSize}px" on:click={() => {addKeyring(spotifyKeyringId, CLIENT_ID)}}>Save Client ID</button>
       <button class="button" style="font-size: {fontSize}px" on:click={getSpotifyClientId}>Load Client ID</button>
-      <button class="button" style="font-size: {fontSize}px" on:click={() => {deletePassword(spotifyKeyringId)}}>Delete Client ID</button>
+      <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {deletePassword(spotifyKeyringId)}}>Delete Saved Client ID</button>
       <button class="button" style="font-size: {fontSize}px" on:click={() => {selectProvider("")}}>Back</button>
     </div>
 
   <!-- Subsonic Login Page -->
   {:else if selectedProvider == "subsonic"}
     <div class="loginContainer" >
-      <form on:submit={logIn} style="display: flex; flex-direction: column;">
+      <form on:submit={connectSubsonic} style="display: flex; flex-direction: column;">
         <input style="font-size: {fontSize}px" bind:value={subsonicUrl} placeholder="Enter your Server URL"/>
         <input style="font-size: {fontSize}px" bind:value={version} placeholder="Enter your Server Version (Default is 1.16.1)"/>
         <input style="font-size: {fontSize}px" bind:value={username} placeholder="Enter your Username"/>
@@ -526,7 +632,7 @@
           getPassword("subsonic-user").then(user => username = user);
           getPassword("subsonic-password").then(pass => password = pass);
       }}>Load Subsonic Login</button>
-      <button class="button" style="font-size: {fontSize}px" on:click={() => {
+      <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {
         deletePassword("subsonic-server");
         deletePassword("subsonic-user");
         deletePassword("subsonic-password")}}>Delete Subsonic Login</button>
