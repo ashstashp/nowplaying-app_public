@@ -1,4 +1,4 @@
-# <img src="https://files.ashstashp.com/nowPlaying_app/icons/app_logo_full.png" alt="spotify logo" style="height: 100px;"/>
+# <img src="https://files.ashstashp.com/nowPlaying_app/icons/app_logo_full.png" alt="app logo" style="height: 100px;"/>
 
 This application was developed by ashstashp™ and follow the licensing found on https://ashstashp.com/legal.html, unless otherwise specified.
 
