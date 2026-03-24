@@ -12,7 +12,7 @@ First public release. This version can connect with Spotify and Subsonic API ser
 ### v0.1.4 -- 03/16/2026? (I FORGOT OKAY T^T) - Ashstash
 Released. This version impoves user experience and customization.
 
-#### Changed made
+#### Changes Made
 - Added Logout button
 - Added Settings
 - Fixed Spotify connection issues (Spotify required authorizing twice. Now requires it once most of the time.)
@@ -20,7 +20,7 @@ Released. This version impoves user experience and customization.
 ### v0.1.5 -- 03/16/2026 (Confident in this one) - Ashstash
 Released. This version imporves user experience.
 
-#### Changes made
+#### Changes Made
 - Added Keyring Support
     - Allows for saving ONE Spotify client ID
     - Allows for saving ONE set of Subsonic server information (Server URL, Username, and Password)
@@ -28,7 +28,7 @@ Released. This version imporves user experience.
 ### v0.1.6 -- 03/16/2026 - Ashstash
 Released. This version adds Quality of Life (QOL) features! (they're helpful, but optional incase you wanna disable them... for some reason)
 
-#### Changed made
+#### Changes Made
 - Added Auto Login
     - Users have the ability to Auto Login to their last used provider.
 - Added Saved Settings
@@ -50,9 +50,25 @@ Released. This version adds Quality of Life (QOL) features! (they're helpful, bu
             - Details
     - Optional Comments (Can add "#### Comments" for extra information on each version)
 
-#### Comments:
+#### Comments
 Added this cause I like to type in big ol' blocks of text! :3 - Ashstash
 
 Anyways, this might actually become the first release if I flush out all the bugs. :p - Ashstash
 
 Also, I'm gonna update the README.md file with better directions that fit the new version. :] - Ashstash
+
+
+### v0.1.7 -- 03/24/2026 - Ashstash
+
+#### Changes Made
+- Fixed Linux Compatability
+    - Removed Keyrings from Linux
+    - Removed AutoLoigin from Linix
+- Added Susonic Version Stroage
+- AppImage Release
+
+#### Comments
+So uh, the keyring package we utalize is not compatable with Linux... sorry. We'll look into alternatives, but can't guarentee anything.
+
+AppImage is now available, properally. But we're trying to find where to host it so uh, wait please. :3
+The AppImage tar.gz file is available, if you wish to build the AppImage yourself.
