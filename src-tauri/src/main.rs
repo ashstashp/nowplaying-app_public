@@ -4,14 +4,14 @@
 use open;
 use tauri::Emitter;
 use tiny_http::{Response, Server};
+use tauri_plugin_keyring::KeyringExt;
+use tauri_plugin_os;
 
 // NEW: Rust command to open the system browser
 #[tauri::command]
 fn open_in_browser(url: String) {
     open::that(url).expect("Failed to open browser");
 }
-
-use tauri_plugin_keyring::KeyringExt;
 
 #[tauri::command]
 fn init_keyring(app: tauri::AppHandle) -> Result<(), String> {
@@ -73,6 +73,8 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_keyring::init())
+        .plugin(tauri_plugin_os::init())
+        .manage(MyState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             init_keyring(app.handle().clone())?;

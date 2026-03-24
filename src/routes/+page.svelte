@@ -3,6 +3,12 @@
 -->
 
 <script lang="ts">
+  console.log("script start");
+
+  // Imports:
+
+  import { platform } from "@tauri-apps/plugin-os";
+
   import {message} from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
   import {
@@ -43,10 +49,7 @@
 
   import { getSpotifyLoginUrl, exchangeCodeForTokens, getNowPlayingSpotify} from "../api/spotify";
   import { listen } from "@tauri-apps/api/event";
-    import { show } from "@tauri-apps/api/app";
-    import { error } from "@sveltejs/kit";
-    import { read } from "$app/server";
-    import { loadTokens } from "../oauth/storage";
+  import { onMount } from "svelte";
 
 
   // import {
@@ -188,12 +191,12 @@
         //   err = {name: "Input Error", message: "Input empty or invalid"};
         // } 
         nowPlaying = null;
-        loggedIn = false;
+        logout();
         showWarn("Login Failed");
       }
   }
 
-  function connectSubsonic() {
+  async function connectSubsonic() {
     loggedIn = true;
     client = createSubsonicClient(subsonicUrl);
     refreshSubsonic();
@@ -349,7 +352,8 @@
   let showSettings = false;
   let showLogoutButton = true;
   let autoLogin = false;
-  const appVersion = "v0.1.6";
+  const appVersion = "v0.1.7";
+  let currentPlatform = "unknown"; 
 
   async function openLegal() {
     const url = "https://ashstashp.com/legal.html"
@@ -404,6 +408,41 @@
     toggleSettings();
   }
 
+  console.log("Before AutoLogin function def");
+
+  async function runAutoLogin() {
+    // Incase of errors cause yk-
+    try {
+      // Gets provider
+      selectedProvider = await readFile("provider", "client")
+      // Checks if provider is spotify
+      if (selectedProvider == "spotify") {
+        // Gets spotify client ID (keyring)
+        await getSpotifyClientId();
+        // Connects to spotify
+        await connectSpotify();
+      } 
+      // Checks if provider is subsonic
+      else if (selectedProvider == "subsonic") {
+        // Gets subsonic URL, username, and password (keyrings)
+        subsonicUrl = await getPassword("subsonic-server");
+        username = await getPassword("subsonic-user");
+        password = await getPassword("subsonic-password");
+        version = await getPassword("subsonic-version");
+
+        // Connects to subsonic
+        setTimeout(connectSubsonic, 3000)
+      } else {
+        throw Error("INVALID_PROVIDER");
+      }
+    } catch(err) {
+      showError("Auto Login Failed:\n" + err);
+      // console.log(selectedProvider);
+      selectProvider("");
+      loggedIn = false;
+    }
+  }
+
   async function updateSettingsFiles() {
     await writeFile("fontSize", fontSize.toString(), "settings");
     await writeFile("artSize", artSize.toString(), "settings");
@@ -427,51 +466,28 @@
     const whatAutoLogin = await readFile("autoLogin", "settings")
     if (whatAutoLogin == "true" || whatAutoLogin == "truee") {
       autoLogin = true;
-      runAutoLogin();
       // console.log(await readFile("autoLogin", "settings") + " == true")
     } else {
       autoLogin = false;
       // console.log(await readFile("autoLogin", "settings") + " != true")
-    };
-  }
-
-  try {
-    loadSettingsFiles();
-  } catch (err) {
-    showError("Failed to load saved settings.\n"+err);
-  }
-
-  async function runAutoLogin() {
-    // Incase of errors cause yk-
-    try {
-      // Gets provider
-      selectedProvider = await readFile("provider", "client")
-      // Checks if provider is spotify
-      if (selectedProvider == "spotify") {
-        // Gets spotify client ID (keyring)
-        await getSpotifyClientId();
-        // Connects to spotify
-        await connectSpotify();
-      } 
-      // Checks if provider is subsonic
-      else if (selectedProvider == "subsonic") {
-        // Gets subsonic URL, username, and password (keyrings)
-        subsonicUrl = await getPassword("subsonic-server");
-        username = await getPassword("subsonic-user");
-        password = await getPassword("subsonic-password");
-
-        // Connects to subsonic
-        connectSubsonic();
-      } else {
-        throw Error("INVALID_PROVIDER");
-      }
-    } catch(err) {
-      showError("Auto Login Failed:\n" + err);
-      // console.log(selectedProvider);
-      selectProvider("");
-      loggedIn = false;
     }
   }
+
+  onMount(async () => {
+    try {
+      currentPlatform = await platform();
+      console.log("Current Platform: " + currentPlatform);
+      console.log("Loading Settings Files");
+      await loadSettingsFiles();
+      console.log(currentPlatform);
+      if (autoLogin && (currentPlatform == "windows" || currentPlatform == "macos")) {
+        console.log("Running Auto Login");
+        await runAutoLogin();
+      }
+    } catch (err) {
+      showError("Failed to load saved settings.\n" + err);
+    }
+  });
 
   // Refresh content
   setInterval(refresh, 3000);
@@ -480,6 +496,7 @@
   // File Stuff
   // writeFile("TestTextFile", "This is a Text").then(() => readFile("TestTextFile"));
 
+  console.log("script end")
 </script>
 
 <main class="container">
@@ -536,7 +553,7 @@
       <h1 style="font-size: {fontSize + 16}px">QOL Features:</h1>
       <button class="button" style="font-size: {fontSize}px; display:flex; flex-direction: row; justify-content: space-between;" on:click={toggleAutoLogin}>
         <p style="font-size: {fontSize}px; test-align:left;">Auto Login:</p>
-        <p style="font-size: {fontSize}px; color: {autoLogin? "#0f0" : "#f00"};">{autoLogin}</p>
+        <p style="font-size: {fontSize}px; color: {currentPlatform == "windows" || currentPlatform == "macos"? autoLogin? "#0f0" : "#f00" : "#f00"};">{currentPlatform == "windows" || currentPlatform == "macos"? autoLogin : "Unavailable"}</p>
       </button>
     </div>
 
@@ -607,9 +624,13 @@
         <input style="font-size: {fontSize}px" bind:value={CLIENT_ID} placeholder="Enter your Client ID"/>
         <button class="button" style="font-size: {fontSize}px; background-color: #1ED760" type="submit">Login</button>
       </form>
-      <button class="button" style="font-size: {fontSize}px" on:click={() => {addKeyring(spotifyKeyringId, CLIENT_ID)}}>Save Client ID</button>
-      <button class="button" style="font-size: {fontSize}px" on:click={getSpotifyClientId}>Load Client ID</button>
-      <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {deletePassword(spotifyKeyringId)}}>Delete Saved Client ID</button>
+      {#if currentPlatform == "windows" || currentPlatform == "macos"}
+        <button class="button" style="font-size: {fontSize}px" on:click={() => {addKeyring(spotifyKeyringId, CLIENT_ID)}}>Save Client ID</button>
+        <button class="button" style="font-size: {fontSize}px" on:click={getSpotifyClientId}>Load Client ID</button>
+        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {deletePassword(spotifyKeyringId)}}>Delete Saved Client ID</button>
+      {:else}
+        <p class="button" style="font-size:{fontSize}px;">Keyrings are not supported for your OS.</p>
+      {/if}
       <button class="button" style="font-size: {fontSize}px" on:click={() => {selectProvider("")}}>Back</button>
     </div>
 
@@ -623,19 +644,27 @@
         <input style="font-size: {fontSize}px" type="password" bind:value={password} placeholder="Enter your Password"/>
         <button class="button" style="font-size: {fontSize}px" type="submit">Login</button>
       </form>
-      <button class="button" style="font-size: {fontSize}px" on:click={() => {
-        addKeyring("subsonic-server", subsonicUrl);
-        addKeyring("subsonic-user", username);
-        addKeyring("subsonic-password", password);}}>Save Subsonic Login</button>
-      <button class="button" style="font-size: {fontSize}px" on:click={() => {
-          getPassword("subsonic-server").then(url => subsonicUrl = url);
-          getPassword("subsonic-user").then(user => username = user);
-          getPassword("subsonic-password").then(pass => password = pass);
-      }}>Load Subsonic Login</button>
-      <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {
-        deletePassword("subsonic-server");
-        deletePassword("subsonic-user");
-        deletePassword("subsonic-password")}}>Delete Subsonic Login</button>
+      {#if currentPlatform == "windows" || currentPlatform == "macos"}
+        <button class="button" style="font-size: {fontSize}px" on:click={() => {
+          addKeyring("subsonic-server", subsonicUrl);
+          addKeyring("subsonic-user", username);
+          addKeyring("subsonic-password", password);
+          addKeyring("subsonic-version", version)}}>Save Subsonic Login</button>
+        <button class="button" style="font-size: {fontSize}px" on:click={() => {
+            getPassword("subsonic-server").then(url => subsonicUrl = url);
+            getPassword("subsonic-user").then(user => username = user);
+            getPassword("subsonic-password").then(pass => password = pass);
+            getPassword("subsonic-version").then(ver => version = ver);
+        }}>Load Subsonic Login</button>
+        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {
+          deletePassword("subsonic-server");
+          deletePassword("subsonic-user");
+          deletePassword("subsonic-password");
+          deletePassword("subsonic-version");}}>Delete Subsonic Login
+        </button>
+      {:else}
+        <p class="button" style="font-size:{fontSize}px;">Keyrings are not supported for your OS.</p>
+      {/if}
       <button class="button" style="font-size: {fontSize}px" on:click={() => {selectProvider("")}}>Back</button>
     </div>
   {/if}
