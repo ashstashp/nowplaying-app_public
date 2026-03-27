@@ -1,6 +1,6 @@
 [package]
 name = "nowplaying-app"
-version = "0.1.6"
+version = "0.1.8"
 description = "Application made to display current song on accepted providers."
 authors = ["ashstashp"]
 edition = "2021"

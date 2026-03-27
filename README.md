@@ -8,6 +8,9 @@ This application (NowPlaying App) displays the song that is currently playing on
 >[!WARNING]
 >This application does not grant the right to publically display any information. Ensure what you are doing is allowed by the artist(s) of any music you are displaying.
 
+>[!IMPORTANT]
+>These installation instructions will no longer be updated. Please vist https://nowplaying-app.ashstashp.com for all downlaods and instructions.
+
 ## Installation
 > [!NOTE]
 > Windows is currently the only supported version. I don't have a Mac machiene, and Linuix is being a pain to work with rn.

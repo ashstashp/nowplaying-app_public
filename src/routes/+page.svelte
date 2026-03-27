@@ -1,9 +1,8 @@
 <!-- TO DO:
-- Auto Login
+- Start NowPlaying+ (Allows for playback controls and streaming)
 -->
 
 <script lang="ts">
-  console.log("script start");
 
   // Imports:
 
@@ -14,7 +13,13 @@
   import {
     createSubsonicClient,
     getNowPlayingSubsonic,
-    getCoverArtUrl
+    getCoverArtUrl,
+
+    type SubsonicTrack,
+
+    type Track
+
+
   } from "../api/subsonic";
 
   import { readFile, writeFile } from "../api/storage";
@@ -25,8 +30,6 @@
   //Spotify Logos
   import spotify_full_black from "../assets/2024-spotify-full-logo/Full_Logo_Black_CMYK.svg";
   import spotify_full_green from "../assets/2024-spotify-full-logo/Full_Logo_Green_CMYK.svg";
-  // import spotify_icon_black from "../assets/2024-spotify-logo-icon/Primary_Logo_Black_CMYK.svg";
-  // import spotify_icon_green from "../assets/2024-spotify-logo-icon/Primary_Logo_Green_CMYK.svg";
 
   // Selfhosted (Unofficial Subsonic API) logos
   import selfHosted_icon from "../assets/selfhosted-logos/selfhosted_logo.png";
@@ -50,19 +53,6 @@
   import { getSpotifyLoginUrl, exchangeCodeForTokens, getNowPlayingSpotify} from "../api/spotify";
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
-
-
-  // import {
-  //   initializeKeyring,
-  //   setPassword,
-  //   getPassword,
-  //   deletePassword,
-  //   hasPassword,
-  //   setSecret,
-  //   getSecret,
-  //   deleteSecret,
-  //   hasSecret
-  // } from 'tauri-plugin-keyring'
 
   ////////////////////////////////////////////////////////////////
   ///////////////////////// Helpful Stuff ////////////////////////
@@ -98,7 +88,6 @@
     try {
     await invoke("store_user_token", {appId, userId, token})
     } catch (err) {
-      console.log(err);
       showError(err);
     }
   }
@@ -129,7 +118,6 @@
     CLIENT_ID = await invoke("get_user_token", {appId, userId})
     }
     catch (error) {
-      // console.error('Failed to get password:', error)
       showError(error);
       return null;
     };
@@ -162,7 +150,13 @@
   /////////////////////////////////////////////////////////////////
   let client = null;
 
-  let nowPlaying = null;
+  let nowPlaying: Track = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: fallback, durationMs: 0, progressMs: -1, isPlaying: false};
+
+  let progressMs = 0;
+
+  function resetTimer() {
+    progressMs = 0;
+  }
 
   async function refreshSubsonic() {
       if (autoLogin) {
@@ -173,24 +167,25 @@
         version = "1.16.1";
       }
       try {
-        const entries = await getNowPlayingSubsonic(client, username, password, version);
-        if (entries && entries[0]) {
-          nowPlaying = entries[0];
-          imageUrl = getCoverArtUrl(subsonicUrl, nowPlaying.coverArt, username, password, version)
-        } else if (entries.title == "Not Playing") {
-          nowPlaying = entries;
-          imageUrl = fallback;
-        } else {
-          nowPlaying = null;
-          loggedIn = false;
+        let tempPlaying = await getNowPlayingSubsonic(client, subsonicUrl, username, password, version);
+        if (!nowPlaying || tempPlaying.id !== nowPlaying.id) {
+          resetTimer();
+          nowPlaying = tempPlaying;
+        }
+        if (nowPlaying) {
+          imageUrl = nowPlaying.artworkUrl
+          if (nowPlaying.isPlaying) {
+            progressMs += 2000;
+            nowPlaying.progressMs = progressMs;
+          }
+        }
+        else {
+          nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: fallback, durationMs: 0, progressMs: -1, isPlaying: false};
+          logout();
           showWarn("Login Failed")
-          //selectedProvider = "";
         }
       } catch(err) {
-        // if (err.name == "TypeError") {
-        //   err = {name: "Input Error", message: "Input empty or invalid"};
-        // } 
-        nowPlaying = null;
+        nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: fallback, durationMs: 0, progressMs: -1, isPlaying: false};
         logout();
         showWarn("Login Failed");
       }
@@ -221,7 +216,6 @@
 
   export function setSpotifySession(token: SpotifyToken) {
     spotifyToken = token;
-    // console.log(spotifyToken);
   }
 
   async function spotifyNowPlaying() {
@@ -236,7 +230,6 @@
 
     if (code) {
       spotifyToken = await asyncTimeout(exchangeCodeForTokens(code, CLIENT_ID), defaultTimeoutTime);
-      // console.log(spotifyToken);
     }
   });
 
@@ -265,63 +258,29 @@
       const errorLimit = 20;
       error = err;
 
-      // console.log("Err Value")
-      // console.log(err);
-      // console.log(err.name);
-      // console.log(err.message);
-
-      // console.log("\nLINE BREAK\n");
-
-      // console.log("Error Value")
-      // console.log(error);
-      // console.log(error.name);
-      // console.log(error.message);
-
-      // console.log("\nLINE BREAK\n");
       while (errorCount < errorLimit) {
         // Displays Error Count
-        // console.log("Error Count: " + errorCount);
 
         // Checks if error is not a Missing access token error
         if (!error.message.toLowerCase().includes("missing access token")){
-          // Informs of non access token error
-          // console.log("Non Access Token Error");
-
           // "Restarts" app
           nowPlaying = null;
-          loggedIn = false;
-          selectProvider("");
+          logout()
 
           // Exits loop
           break;
         } 
         // If is Missing access token error
         else {
-          // Warns that is access token error
-          // console.log("Access token error");
-          // console.log("Fetching new token.");
-
           // Grabs a new access token
           spotifyToken = await exchangeCodeForTokens(globalCode, CLIENT_ID);
-          // console.log(spotifyToken);
 
           // If token is an error, and not invalid_grant error
-          if (spotifyToken.error) {
-            if (spotifyToken.error != "invalid_grant") {
-
-              // Sets error to the token error
-              error = {name: spotifyToken.error, message: spotifyToken.error_description};
-              // console.log("Spotify Error:")
-              // console.log(error);
-            }
+          if (spotifyToken.error && spotifyToken.error != "invalid_grant") {
+            // Sets error to the token error
+            error = {name: spotifyToken.error, message: spotifyToken.error_description};
           }
         }
-        // console.log("error:");
-        // console.log(err);
-        // console.log("Error Message:")
-        // console.log(err.message);
-        // console.log("Message type:")
-        // console.log(typeof(err.message));
         errorCount++;
       }
       nowPlaying = null;
@@ -334,15 +293,62 @@
     }
   }
 
-  // refresh stuff
+  ///////////////////////////////////////////////////////////
+  ///////////////////////// UI Stuff ////////////////////////
+  ///////////////////////////////////////////////////////////
 
-  async function refresh() {
-    if (selectedProvider == "subsonic" && loggedIn) {
-      refreshSubsonic();
-    } else if (selectedProvider == "spotify" && loggedIn) {
-      refreshSpotify();
-    }
+  let mainColor = [0, 0, 0];
+  let fontColor = [255, 255, 255];
+  let secondaryColor = [0, 0, 0, 0.5];
+
+  let mainColorStr = "rgb(0, 0, 0)";
+  let fontColorStr = "rgb(255, 255, 255)";
+  let secondaryColorStr = "rgba(0, 0, 0, 0.5)";
+
+  function updateColors() {
+    mainColorStr = "rgb(" + mainColor[0] + ", " + mainColor[1] + ", " + mainColor[2] + ")";
+    fontColorStr = "rgb(" + fontColor[0] + ", " + fontColor[1] + ", " + fontColor[2] + ")";
+    secondaryColorStr = "rgba(" + secondaryColor[0] + ", " + secondaryColor[1] + ", " + secondaryColor[2] + ", " + secondaryColor[3] + ")";
+    document.documentElement.style.setProperty("--main-color", mainColorStr);
+    document.documentElement.style.setProperty("--secondary-color", secondaryColorStr);
+    document.documentElement.style.setProperty("--font-color", fontColorStr);
+    saveColors();
   }
+
+  async function saveColors() {
+    await writeFile("mainColor-0", mainColor[0].toString(), "theme");
+    await writeFile("mainColor-1", mainColor[1].toString(), "theme");
+    await writeFile("mainColor-2", mainColor[2].toString(), "theme");
+    await writeFile("secondaryColor-0", secondaryColor[0].toString(), "theme");
+    await writeFile("secondaryColor-1", secondaryColor[1].toString(), "theme");
+    await writeFile("secondaryColor-2", secondaryColor[2].toString(), "theme");
+    await writeFile("secondaryColor-3", secondaryColor[3].toString(), "theme");
+    await writeFile("fontColor-0", fontColor[0].toString(), "theme");
+    await writeFile("fontColor-1", fontColor[1].toString(), "theme");
+    await writeFile("fontColor-2", fontColor[2].toString(), "theme");
+  }
+
+  async function loadColors() {
+    mainColor[0] = Number(await readFile("mainColor-0", "theme"));
+    mainColor[1] = Number(await readFile("mainColor-1", "theme"));
+    mainColor[2] = Number(await readFile("mainColor-2", "theme"));
+    secondaryColor[0] = Number(await readFile("secondaryColor-0", "theme"));
+    secondaryColor[1] = Number(await readFile("secondaryColor-1", "theme"));
+    secondaryColor[2] = Number(await readFile("secondaryColor-2", "theme"));
+    secondaryColor[3] = Number(await readFile("secondaryColor-3", "theme"));
+    fontColor[0] = Number(await readFile("fontColor-0", "theme"));
+    fontColor[1] = Number(await readFile("fontColor-1", "theme"));
+    fontColor[2] = Number(await readFile("fontColor-2", "theme"));
+    updateColors();
+  }
+
+  onMount(async () => {
+    try {
+      await loadColors();
+    } catch (err) {
+      showError("Failed to load saved theme.\n" + err);
+    }
+  });
 
   /////////////////////////////////////////////////////////////////
   ///////////////////////// Settings Stuff ////////////////////////
@@ -352,7 +358,8 @@
   let showSettings = false;
   let showLogoutButton = true;
   let autoLogin = false;
-  const appVersion = "v0.1.7";
+  let displayProgress = true;
+  const appVersion = "v0.1.8";
   let currentPlatform = "unknown"; 
 
   async function openLegal() {
@@ -365,6 +372,10 @@
   // Toggle Logout Button Visibility
   function toggleShowLogoutButton() {
     showLogoutButton = !showLogoutButton;
+  }
+
+  function toggleDisplayProgress() {
+    displayProgress = !displayProgress;
   }
 
   // Toggle AutoLogin feature
@@ -408,7 +419,10 @@
     toggleSettings();
   }
 
-  console.log("Before AutoLogin function def");
+  function discardSettings() {
+    loadSettingsFiles();
+    toggleSettings();
+  }
 
   async function runAutoLogin() {
     // Incase of errors cause yk-
@@ -431,15 +445,13 @@
         version = await getPassword("subsonic-version");
 
         // Connects to subsonic
-        setTimeout(connectSubsonic, 3000)
+        await connectSubsonic();
       } else {
         throw Error("INVALID_PROVIDER");
       }
     } catch(err) {
       showError("Auto Login Failed:\n" + err);
-      // console.log(selectedProvider);
-      selectProvider("");
-      loggedIn = false;
+      logout();
     }
   }
 
@@ -448,6 +460,7 @@
     await writeFile("artSize", artSize.toString(), "settings");
     await writeFile("showLogoutButton", showLogoutButton.toString(), "settings");
     await writeFile("autoLogin", autoLogin.toString(), "settings");
+    await writeFile("displayProgress", displayProgress.toString(), "settings");
   }
 
   async function loadSettingsFiles() {
@@ -457,31 +470,30 @@
     const whatShowLogoutButton = await readFile("showLogoutButton", "settings")
     if (whatShowLogoutButton == "true" || whatShowLogoutButton == "truee") {
       showLogoutButton = true;
-      // console.log(await readFile("showLogoutButton", "settings") + " == true");
     } else {
       showLogoutButton = false;
-      // console.log(await readFile("showLogoutButton", "settings") + " != true");
     };
 
     const whatAutoLogin = await readFile("autoLogin", "settings")
     if (whatAutoLogin == "true" || whatAutoLogin == "truee") {
       autoLogin = true;
-      // console.log(await readFile("autoLogin", "settings") + " == true")
     } else {
       autoLogin = false;
-      // console.log(await readFile("autoLogin", "settings") + " != true")
+    }
+
+    const whatDisplayProgress = await readFile("displayProgress", "settings")
+    if (whatDisplayProgress == "true" || whatAutoLogin == "truee") {
+      displayProgress = true;
+    } else {
+      displayProgress = false;
     }
   }
 
   onMount(async () => {
     try {
       currentPlatform = await platform();
-      console.log("Current Platform: " + currentPlatform);
-      console.log("Loading Settings Files");
       await loadSettingsFiles();
-      console.log(currentPlatform);
       if (autoLogin && (currentPlatform == "windows" || currentPlatform == "macos")) {
-        console.log("Running Auto Login");
         await runAutoLogin();
       }
     } catch (err) {
@@ -489,14 +501,22 @@
     }
   });
 
+  ///////////////////////////////////////////////////////////////
+  ///////////////////////// Progress Bar ////////////////////////
+  ///////////////////////////////////////////////////////////////
+
+  // refresh stuff
+  async function refresh() {
+    if (selectedProvider == "subsonic" && loggedIn) {
+      refreshSubsonic();
+    } else if (selectedProvider == "spotify" && loggedIn) {
+      refreshSpotify();
+    }
+  }
+
   // Refresh content
-  setInterval(refresh, 3000);
+  setInterval(refresh, 2000);
   refresh();
-
-  // File Stuff
-  // writeFile("TestTextFile", "This is a Text").then(() => readFile("TestTextFile"));
-
-  console.log("script end")
 </script>
 
 <main class="container">
@@ -519,6 +539,36 @@
       </button>
     </div>
 
+    <!-- Theme Settings -->
+    <h1 style="font-size: {fontSize + 16}px">Theme Settings</h1>
+    <div style="display:flex; flex-direction: column; align-items: center; justify-content: center;">
+      <form on:submit={updateColors} style="display: flex; flex-direction: column;">
+        <h2 style="font-size: {fontSize + 8}px">Main Color (RGB)</h2>
+        <div style="display:flex; flex-direction: row; align-items: center; justify-content: center;">
+          <input style="font-size: {fontSize}px" bind:value={mainColor[0]} placeholder="Enter RED Value"/>
+          <input style="font-size: {fontSize}px" bind:value={mainColor[1]} placeholder="Enter GREEN Value"/>
+          <input style="font-size: {fontSize}px" bind:value={mainColor[2]} placeholder="Enter BLUE Value"/>
+        </div>
+        <h2 style="font-size: {fontSize + 8}px">Secondary Color (RGB)</h2>
+        <div style="display:flex; flex-direction: row; align-items: center; justify-content: center;">
+          <input style="font-size: {fontSize}px" bind:value={secondaryColor[0]} placeholder="Enter RED Value"/>
+          <input style="font-size: {fontSize}px" bind:value={secondaryColor[1]} placeholder="Enter GREEN Value"/>
+          <input style="font-size: {fontSize}px" bind:value={secondaryColor[2]} placeholder="Enter BLUE Value"/>
+        </div>
+        <h2 style="font-size: {fontSize + 8}px">Background Transparency (0-1)</h2>
+        <div style="display:flex; flex-direction: row; align-items: center; justify-content: center;">
+          <input style="font-size: {fontSize}px" bind:value={secondaryColor[3]} placeholder="Enter ALPHA Value"/>
+        </div>
+        <h2 style="font-size: {fontSize + 8}px">Font Color (RGB)</h2>
+        <div style="display:flex; flex-direction: row; align-items: center; justify-content: center;">
+          <input style="font-size: {fontSize}px" bind:value={fontColor[0]} placeholder="Enter RED Value"/>
+          <input style="font-size: {fontSize}px" bind:value={fontColor[1]} placeholder="Enter GREEN Value"/>
+          <input style="font-size: {fontSize}px" bind:value={fontColor[2]} placeholder="Enter BLUE Value"/>
+        </div>
+        <button class="button" style="font-size: {fontSize}px;" type="submit">Save</button>
+      </form>
+    </div>
+
     <!-- Album Art Size -->
     <h1 style="font-size: {fontSize + 16}px">Album Art Size:</h1>
     <div style="display:flex; flex-direction: row; align-items: center; justify-content: center;">
@@ -530,14 +580,14 @@
         <img class="interactiveIcon" style="height:{fontSize + 14}" src={addCircle} alt="add-circle icon"/>
       </button>
     </div>
+
     <!-- Album Art Preview -->
     <div style="display:flex; flex-direction: column; align-items: center; justify-content: center;">
       <h1 style="font-size: {fontSize + 16}px">Album Art Preview:</h1>
-      {#if nowPlaying}
-        <img class="albumArt" style="width:{artSize}px; height:{artSize}px; border-radius:8px;" src={imageUrl} alt="Preview"/>
-      {:else}
-        <img class="albumArt" style="width:{artSize}px; height:{artSize}px;" src={fallback} alt="Preview"/>
+      {#if selectedProvider == "spotify"}
+        <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px; width: {artSize}px; height: auto;"/>
       {/if}
+      <img class="albumArt" style="width:{artSize}px; height:{artSize}px; border-radius:8px;" src={imageUrl} alt="Preview"/>
     </div>
 
     <!-- Toggle Buttons -->
@@ -555,6 +605,10 @@
         <p style="font-size: {fontSize}px; test-align:left;">Auto Login:</p>
         <p style="font-size: {fontSize}px; color: {currentPlatform == "windows" || currentPlatform == "macos"? autoLogin? "#0f0" : "#f00" : "#f00"};">{currentPlatform == "windows" || currentPlatform == "macos"? autoLogin : "Unavailable"}</p>
       </button>
+      <button class="button" style="font-size: {fontSize}px; display:flex; flex-direction: row; justify-content: space-between;" on:click={toggleDisplayProgress}>
+        <p style="font-size: {fontSize}px; test-align:left;">Display Progress Bar:</p>
+        <p style="font-size: {fontSize}px; color: {displayProgress? "#0f0" : "#f00"};">{displayProgress}</p>
+      </button>
     </div>
 
     <br>
@@ -571,6 +625,7 @@
     <button class="button" style="font-size: {fontSize}px" on:click={() => {showError("Test Error")}}>Test Error Popup</button>
     <!-- Save+Exit Button -->
     <button class="button" style="font-size: {fontSize}px" on:click={saveSettings}>Save and Exit</button>
+    <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={discardSettings}>Discard Changes</button>
   </div>
 {/snippet}
 
@@ -672,11 +727,12 @@
 <!----------------------------------------------------------------------------------------------->
 <!------------------------------------- Now Playing Screen -------------------------------------->
 <!----------------------------------------------------------------------------------------------->
-{:else if nowPlaying}
+{:else}
   {#if showSettings}
     {@render settings()}
-  {:else if nowPlaying.title != "Not Playing"}
-    <div class="backgroundContainer" style="display: flex; flex-direction: row; justify-content:space-between;">
+  {:else if nowPlaying.isPlaying == true}
+  <div class="backgroundContainer" style="display: flex; flex-direction: column; justify-content:center;">
+    <div style="display: flex; flex-direction: row; justify-content:space-between;">
       <!-- Main Content -->
       <div style="display:flex; flex-direction: row;">
         <div style="display: flex; flex-direction: column;">
@@ -689,6 +745,7 @@
           <h1 style="font-size: {fontSize + 16}px;">{nowPlaying.title}</h1>
           <h2 style="font-size: {fontSize + 8}px;">{nowPlaying.artist}</h2>
         </div>
+        
       </div>
 
       <!-- Buttons -->
@@ -701,6 +758,13 @@
         <button on:click={toggleSettings} class="interactiveIconBackground" style="display:flex;"><img class="interactiveIcon" src={settingsIcon} alt="settings button"/></button>
       </div>
     </div>
+    {#if displayProgress == true}
+    <div class="progressBar2" style="width: 100%">
+      <div class="progressBar1" style="width:{(nowPlaying.progressMs/nowPlaying.durationMs)*100}%"></div>
+      <!-- <p>{nowPlaying.progressMs}/{nowPlaying.durationMs}</p> -->
+    </div>
+    {/if}
+  </div>
 
   {:else}
     <div class="backgroundContainer" style="display: flex; flex-direction: row; justify-content:space-between;">
@@ -744,6 +808,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+  --main-color: rgb(0, 0, 0);
+  --secondary-color: rgba(0, 0, 0, 0.5);
+  --font-color: rgb(255, 255, 255);
 }
 
 main {
@@ -751,7 +818,7 @@ main {
 }
 
 .backgroundContainer {
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--secondary-color);
   padding: 9px;
   border-radius: 10px;
 }
@@ -764,7 +831,7 @@ main {
 }
 
 .loginContainer {
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--secondary-color);
   border-radius: 8px;
   padding: 8px;
   display: flex;
@@ -780,8 +847,8 @@ main {
 
 input {
   margin: 5px;
-  color: #fff;
-  background-color: #000;
+  color: var(--font-color);
+  background-color: var(--main-color);
   border-radius: 8px;
   padding: 5px;
   border-color: rgba(0, 0, 0, 0);
@@ -789,8 +856,8 @@ input {
 
 .button {
   margin: 5px;
-  color: #fff;
-  background-color: #000;
+  color: var(--font-color);
+  background-color: var(--main-color);
   border-radius: 8px;
   padding: 5px;
   border-color: rgba(0, 0, 0, 0);
@@ -811,6 +878,19 @@ input {
   border-radius: 8px;
 }
 
+.progressBar1 {
+  height: 10px;
+  border-radius: 8px;
+  background-color: var(--font-color);
+}
+
+.progressBar2 {
+  height: 10px;
+  border-radius: 8px;
+  background-color: var(--main-color);
+  margin-top: 10px;
+}
+
 .settingsButton {
   width: auto;
   height: 50px;
@@ -829,15 +909,15 @@ input {
 
 h2 {
   text-align: center;
-  color: #fff;
+  color: var(--font-color);
 }
 h1 {
   text-align: center;
-  color: #fff;
+  color: var(--font-color);
 }
 p {
   text-align: center;
-  color: #fff;
+  color: var(--font-color);
 }
 
 </style>

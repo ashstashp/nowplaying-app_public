@@ -70,5 +70,25 @@ Also, I'm gonna update the README.md file with better directions that fit the ne
 #### Comments
 So uh, the keyring package we utalize is not compatable with Linux... sorry. We'll look into alternatives, but can't guarentee anything.
 
-AppImage is now available, properally. But we're trying to find where to host it so uh, wait please. :3
-The AppImage tar.gz file is available, if you wish to build the AppImage yourself.
+AppImage is now available, properally. But we're trying to find where to host it so uh, wait please. :3 - Ashstash
+The AppImage tar.gz file is available, if you wish to build the AppImage yourself. - Ashstash
+
+### v0.1.8 -- 03/27/2026 - Ashstash
+
+#### Changes Made
+- Added Progress Bar
+- Fixed AutoLogin Issues (would wait 3 sec for whatever reason)
+- Added Theme (color) customization
+- Optimized pkce
+    - Made Spotify login slightly more consistant
+- Added Spotify logo in settings art preview (because spotify requires it, and it wasn't there for whatever reason...)
+    - Does not appear when streaming from Subsonic servers, dw.
+
+#### Comments
+Sometimes (often) nonexistant errors are thrown. This usually doesn't affect anything. Idk why it happens tho- - Ashstash
+
+I'm thinking about making a NowPlaying+ App. Where you can stream the music from your device. It would also create a mobile app to have controls easier to access. This app would be it's own thing though, to preserve the purpose of this app: to display music you're playing, neatly. - Ashstash
+
+I'll ask around for thoughts on this. It might end up just being a major version to this app. :p - Ashstash
+
+I REALLY need to make a standard commit message ngl. It's rarely been consistant. T^T - Ashstash
