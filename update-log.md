@@ -92,3 +92,5 @@ I'm thinking about making a NowPlaying+ App. Where you can stream the music from
 I'll ask around for thoughts on this. It might end up just being a major version to this app. :p - Ashstash
 
 I REALLY need to make a standard commit message ngl. It's rarely been consistant. T^T - Ashstash
+
+I've decided to limit all AppImage downloads to my website. I can't guraentee that the right version is available soooo... yeah. - Ashstash
