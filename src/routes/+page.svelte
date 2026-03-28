@@ -10,22 +10,9 @@
 
   import {message} from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
-  import {
-    createSubsonicClient,
-    getNowPlayingSubsonic,
-    getCoverArtUrl,
-
-    type SubsonicTrack,
-
-    type Track
-
-
-  } from "../api/subsonic";
+  import { createSubsonicClient, getNowPlayingSubsonic, type Track } from "../api/subsonic";
 
   import { readFile, writeFile } from "../api/storage";
-
-  // Fallback Image (Notplaying Icon)
-  import fallback from "../assets/icons/musical-note-outline.svg"
 
   //Spotify Logos
   import spotify_full_black from "../assets/2024-spotify-full-logo/Full_Logo_Black_CMYK.svg";
@@ -41,14 +28,6 @@
 
   // Settings Logo
   import settingsIcon_full from "../assets/icons/settings_full.png";
-  import settingsIcon from "../assets/icons/settings.png";
-
-  // Logout Icon
-  import logoutIcon from "../assets/icons/log-out-outline.svg";
-
-  // Ionicons
-  import removeCircle from "../assets/icons/remove-circle.svg";
-  import addCircle from "../assets/icons/add-circle.svg";
 
   import { getSpotifyLoginUrl, exchangeCodeForTokens, getNowPlayingSpotify} from "../api/spotify";
   import { listen } from "@tauri-apps/api/event";
@@ -143,14 +122,14 @@
   let username = "";
   let password = "";
   let version = "1.16.1";
-  let imageUrl = fallback;
+  let imageUrl = "N/A";
 
   /////////////////////////////////////////////////////////////////
   ///////////////////////// Subsonic Stuff ////////////////////////
   /////////////////////////////////////////////////////////////////
   let client = null;
 
-  let nowPlaying: Track = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: fallback, durationMs: 0, progressMs: -1, isPlaying: false};
+  let nowPlaying: Track = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
 
   let progressMs = 0;
 
@@ -180,13 +159,14 @@
           }
         }
         else {
-          nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: fallback, durationMs: 0, progressMs: -1, isPlaying: false};
+          nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
           logout();
           showWarn("Login Failed")
         }
       } catch(err) {
-        nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: fallback, durationMs: 0, progressMs: -1, isPlaying: false};
+        nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
         logout();
+        console.log(err)
         showWarn("Login Failed");
       }
   }
@@ -359,7 +339,7 @@
   let showLogoutButton = true;
   let autoLogin = false;
   let displayProgress = true;
-  const appVersion = "v0.1.8";
+  const appVersion = "v0.8.1";
   let currentPlatform = "unknown"; 
 
   async function openLegal() {
@@ -520,6 +500,8 @@
 </script>
 
 <main class="container">
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
 <!-------------------------------------------------------->
 <!------------------- Settings Screen -------------------->
@@ -530,12 +512,12 @@
     <!-- Font/Iocn Size -->
     <h1 style="font-size: {fontSize + 16}px">Font/Icon Size:</h1>
     <div style="display:flex; flex-direction: row; align-items: center; justify-content: center;">
-      <button style="background: transparent; border-color: rgba(0, 0, 0, 0);" on:click={decFontSize}>
-        <img class="interactiveIcon" style="height:{fontSize + 14}" src={removeCircle} alt="remove-circle icon"/>
+      <button style="background: transparent; border-color: rgba(0, 0, 0, 0);" on:click={decFontSize} title="decrease-font-size">
+        <ion-icon style="color:{fontColorStr}; font-size:{fontSize+14}px" size={fontSize+30} name="remove-circle"></ion-icon>
       </button>
       <h1 style="font-size: {fontSize + 16}px">{fontSize}px</h1>
-      <button style="background: transparent; border-color: rgba(0, 0, 0, 0);" on:click={incFontSize}>
-        <img class="interactiveIcon" style="height:{fontSize + 14}" src={addCircle} alt="add-circle icon"/>
+      <button style="background: transparent; border-color: rgba(0, 0, 0, 0);" on:click={incFontSize} title="increase-font-size">
+        <ion-icon style="color:{fontColorStr}; font-size:{fontSize+14}px" name="add-circle"></ion-icon>
       </button>
     </div>
 
@@ -572,12 +554,12 @@
     <!-- Album Art Size -->
     <h1 style="font-size: {fontSize + 16}px">Album Art Size:</h1>
     <div style="display:flex; flex-direction: row; align-items: center; justify-content: center;">
-      <button class="interactiveIconBackground" on:click={decArtSize}>
-        <img class="interactiveIcon" style="height:{fontSize + 14}" src={removeCircle} alt="remove-circle icon"/>
+      <button class="interactiveIconBackground" on:click={decArtSize} title="decrease-art-size">
+        <ion-icon style="color:{fontColorStr}; font-size:{fontSize+14}px" name="remove-circle"></ion-icon>
       </button>
-      <h1 style="font-size: {fontSize + 16}px">{artSize}px</h1>
-      <button class="interactiveIconBackground" on:click={incArtSize}>
-        <img class="interactiveIcon" style="height:{fontSize + 14}" src={addCircle} alt="add-circle icon"/>
+      <h1 style="font-size: {fontSize + 16}px">{artSize}px</h1>   
+      <button class="interactiveIconBackground" on:click={incArtSize} title="increase-art-size">
+        <ion-icon style="color:{fontColorStr}; font-size:{fontSize+14}px" name="add-circle"></ion-icon>
       </button>
     </div>
 
@@ -587,7 +569,11 @@
       {#if selectedProvider == "spotify"}
         <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px; width: {artSize}px; height: auto;"/>
       {/if}
+      {#if nowPlaying.isPlaying == true}
       <img class="albumArt" style="width:{artSize}px; height:{artSize}px; border-radius:8px;" src={imageUrl} alt="Preview"/>
+      {:else}
+      <ion-icon name="musical-note-outline" style="font-size:{artSize}px; color:{fontColorStr}"></ion-icon>
+      {/if}
     </div>
 
     <!-- Toggle Buttons -->
@@ -730,7 +716,8 @@
 {:else}
   {#if showSettings}
     {@render settings()}
-  {:else if nowPlaying.isPlaying == true}
+  <!-- {:else if nowPlaying.isPlaying == true} -->
+   {:else}
   <div class="backgroundContainer" style="display: flex; flex-direction: column; justify-content:center;">
     <div style="display: flex; flex-direction: row; justify-content:space-between;">
       <!-- Main Content -->
@@ -739,23 +726,30 @@
           {#if selectedProvider == "spotify"}
             <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px;"/>
           {/if}
+          {#if nowPlaying.isPlaying == true}
           <img class="albumCover" style="height:{artSize}px; width:{artSize}px;" src={imageUrl} alt={`Cover art for ${nowPlaying.title} by ${nowPlaying.artist}`} />
+          {:else}
+          <ion-icon name="musical-note-outline" style="font-size:{artSize}px; color:{fontColorStr}"></ion-icon>
+          {/if}
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
           <h1 style="font-size: {fontSize + 16}px;">{nowPlaying.title}</h1>
           <h2 style="font-size: {fontSize + 8}px;">{nowPlaying.artist}</h2>
         </div>
-        
       </div>
 
       <!-- Buttons -->
       <div style="display:flex; flex-direction: column; justify-content: space-between;">
         {#if showLogoutButton}
-        <button on:click={logout} class="interactiveIconBackground" style="display:flex;"><img class="interactiveIcon" src={logoutIcon} alt="logout button"/></button>
+        <button on:click={logout} class="interactiveIconBackground" style="display:flex;" title="logout">
+          <ion-icon name="log-out-outline" style="color:#f00; font-size:{fontSize + 14}px;"></ion-icon>
+        </button>
         {:else}
         <button class="interactiveIconBackground" style="display:flex;">{""}</button>
         {/if}
-        <button on:click={toggleSettings} class="interactiveIconBackground" style="display:flex;"><img class="interactiveIcon" src={settingsIcon} alt="settings button"/></button>
+        <button on:click={toggleSettings} class="interactiveIconBackground" style="display:flex;" title="open-settings">
+          <ion-icon name="settings" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+        </button>
       </div>
     </div>
     {#if displayProgress == true}
@@ -765,33 +759,6 @@
     </div>
     {/if}
   </div>
-
-  {:else}
-    <div class="backgroundContainer" style="display: flex; flex-direction: row; justify-content:space-between;">
-      <!-- Main Content -->
-      <div style="display:flex; flex-direction: row;">
-        <div style="display: flex; flex-direction: column;">
-          {#if selectedProvider == "spotify"}
-            <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px;"/>
-          {/if}
-          <img class="albumCover" style="height:{artSize}px; width:{artSize}px;" src={fallback} alt={`No Music Playing`} />
-        </div>
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <h1 style="font-size: {fontSize + 16}px;">Not Playing</h1>
-          <h2 style="font-size: {fontSize + 8}px;">N/A</h2>
-        </div>
-      </div>
-
-      <!-- Buttons -->
-      <div style="display:flex; flex-direction: column; justify-content: space-between;">
-        {#if showLogoutButton}
-        <button on:click={logout} class="interactiveIconBackground" style="display:flex;"><img class="interactiveIcon" src={logoutIcon} alt="logout button"/></button>
-        {:else}
-        <button class="interactiveIconBackground" style="display:flex;">{""}</button>
-        {/if}
-        <button on:click={toggleSettings} class="interactiveIconBackground" style="display:flex;"><img class="interactiveIcon" src={settingsIcon} alt="settings button"/></button>
-      </div>
-    </div>
   {/if}
 {/if}
 </main>
@@ -898,10 +865,6 @@ input {
   border-radius: 8px;
 }
 
-.interactiveIcon {
-  width: auto;
-  height: 30px;
-}
 .interactiveIconBackground {
   background: transparent; 
   border-color: rgba(0, 0, 0, 0);

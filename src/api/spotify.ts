@@ -1,7 +1,6 @@
 import { generatePKCE } from "../oauth/pkce";
 import { writeFile, readFile } from "./storage";
 import type { Track } from "./subsonic";
-import fallback from "../assets/icons/musical-note-outline.svg";
 
 const REDIRECT_URI = "http://127.0.0.1:1420/callback";
 
@@ -56,25 +55,31 @@ export async function getNowPlayingSpotify(tokens: any): Promise<Track> {
       }
     }
   );
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Spotify error ${res.status}: ${text.slice(0, 100)}`);
-  }
   let data;
+  if (res.status === 204) {
+    data = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false}
+  }
+  else {
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Spotify error ${res.status}: ${text.slice(0, 100)}`);
+    }
 
-  try {
-    data = await res.json();
-  } catch (err) {
-    data = null;
+    console.log(res);
+    try {
+      data = await res.json();
+    } catch (err) {
+      console.log(err);
+      data = null;
     return null;
+    }
   }
 
   const id = "0";
   const title = data.item? data.item.name : "Not Playing";
   const artist = data.item? data.item.artists.map((a: any) => a.name).join(", ") : "N/A";
   const album = data.item? data.item.album.name : "N/A";
-  const artworkUrl = data.item? data.item.album.images[0].url : fallback;
+  const artworkUrl = data.item? data.item.album.images[0].url : "N/A";
   const durationMs = data.item? data.item.duration_ms : 0;
   const progressMs = data.item? data.progress_ms : -1;
   const isPlaying = data.item? data.is_playing : false;

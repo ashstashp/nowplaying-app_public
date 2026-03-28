@@ -1,6 +1,5 @@
 // src/api/subsonic.ts
 import axios from "axios";
-import fallback from "../assets/icons/musical-note-outline.svg";
 
 export interface Track {
   id: string;
@@ -48,7 +47,7 @@ export async function getNowPlayingSubsonic(
     const title = response.nowPlaying.entry? response.nowPlaying.entry[0].title : "Not Playing";
     const artist = response.nowPlaying.entry? response.nowPlaying.entry[0].artist : "N/A";
     const album = response.nowPlaying.entry? response.nowPlaying.entry[0].album : "N/A";
-    const artworkUrl = response.nowPlaying.entry? getCoverArtUrl(baseUrl, id, username, password, version) : fallback;
+    const artworkUrl = response.nowPlaying.entry? getCoverArtUrl(baseUrl, id, username, password, version) : "N/A";
     const durationMs = response.nowPlaying.entry? response.nowPlaying.entry[0].duration * 1000 : 0;
     const progressMs = 0;
     const isPlaying = response.nowPlaying.entry? true : false;
@@ -57,13 +56,14 @@ export async function getNowPlayingSubsonic(
       title: title, 
       artist: artist, 
       album: album, 
-      artworkUrl: artworkUrl? artworkUrl : fallback, 
+      artworkUrl: artworkUrl? artworkUrl : "N/A", 
       durationMs: durationMs, 
       progressMs: progressMs, 
       isPlaying: isPlaying
     }
     return nowPlaying;
-  } catch {
+  } catch (err) {
+    console.log(err);
     return null;
   }
 }

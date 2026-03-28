@@ -92,3 +92,20 @@ I'm thinking about making a NowPlaying+ App. Where you can stream the music from
 I'll ask around for thoughts on this. It might end up just being a major version to this app. :p - Ashstash
 
 I REALLY need to make a standard commit message ngl. It's rarely been consistant. T^T - Ashstash
+
+### v0.8.1 -- 03/28/2026 - Ashstash
+
+#### Changes Made
+- Fixed version control (I used patch as minor and not patch. T^T It's updated to what it should've been now lol)
+- Fixed icon colors.
+- Optimized Code
+    - Removed unused imports
+    - Removed unnessicary screen
+    - Changed icon formatting (img to ion-icon)
+- Fixed Spotify Connection Issues
+    - We had no 204 handleing T^T
+
+#### Comments
+I should really research some stuff before doing it sometimes. - Ashstash
+
+Bro, some of these errors are so confusing ngl.
