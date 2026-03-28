@@ -93,6 +93,7 @@ I'll ask around for thoughts on this. It might end up just being a major version
 
 I REALLY need to make a standard commit message ngl. It's rarely been consistant. T^T - Ashstash
 
+<<<<<<< HEAD
 ### v0.8.1 -- 03/28/2026 - Ashstash
 
 #### Changes Made
@@ -109,3 +110,6 @@ I REALLY need to make a standard commit message ngl. It's rarely been consistant
 I should really research some stuff before doing it sometimes. - Ashstash
 
 Bro, some of these errors are so confusing ngl.
+=======
+I've decided to limit all AppImage downloads to my website. I can't guraentee that the right version is available soooo... yeah. - Ashstash
+>>>>>>> 48433f3d0693dae60b4a7fd1b36900fe726a1c94
