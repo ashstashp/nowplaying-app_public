@@ -159,7 +159,7 @@
             progressMs += 2000;
             nowPlaying.progressMs = progressMs;
           }
-          // console.log(getSubsonicQueue(subsonicUrl, username, password, version));
+          console.log(getSubsonicQueue(subsonicUrl, username, password, version));
           // console.log(getSubsonicStreamUrl(subsonicUrl, nowPlaying.id, username, password, version));
         }
         else {
@@ -512,6 +512,16 @@
   });
 
   ///////////////////////////////////////////////////////////////
+  ///////////////////////// Library Page ////////////////////////
+  ///////////////////////////////////////////////////////////////
+  let showLibrary = false;
+
+  function toggleLibrary() {
+    showLibrary = !showLibrary;
+  };
+
+
+  ///////////////////////////////////////////////////////////////
   ///////////////////////// Progress Bar ////////////////////////
   ///////////////////////////////////////////////////////////////
 
@@ -646,6 +656,31 @@
   </div>
 {/snippet}
 
+<!------------------------------------------------------->
+<!------------------- Library Screen -------------------->
+<!------------------------------------------------------->
+{#snippet library()}
+  <div class="loginContainer">
+    <h1>Library</h1>
+    {#if selectedProvider == "spotify"}
+      <h2>Spotify is currently not supported</h2>
+    {:else}
+      <h2>Playlists:</h2>
+        <div style="display:flex; flex-direction: row; align-items:flex-start; justify-content:flex-start;">
+          <p style="margin:10px;" >Playlist 1</p>
+          <p style="margin:10px;" >Playlist 2</p>
+        </div>
+      <h2>Albums</h2>
+        <div style="display:flex; flex-direction: row; align-items:flex-start; justify-content:flex-start;">
+          <p style="margin:10px;" >Album 1</p>
+          <p style="margin:10px;" >Album 2</p>
+        </div>
+    {/if}
+    <button class="button" style="font-size: {fontSize}px" on:click={toggleLibrary}>Close</button>
+  </div>
+{/snippet}
+
+
 <!--------------------------------------------------------------------------------------->
 <!------------------------------------- Accept TOS -------------------------------------->
 <!--------------------------------------------------------------------------------------->
@@ -761,8 +796,9 @@
 {:else}
   {#if showSettings}
     {@render settings()}
-  <!-- {:else if nowPlaying.isPlaying == true} -->
-   {:else}
+  {:else if showLibrary}
+    {@render library()}
+  {:else}
   <div class="backgroundContainer" style="display: flex; flex-direction: column; justify-content:center;">
     <div style="display: flex; flex-direction: row; justify-content:space-between;">
       <!-- Main Content -->
@@ -792,6 +828,9 @@
         {:else}
         <button class="interactiveIconBackground" style="display:flex;">{""}</button>
         {/if}
+        <button on:click={toggleLibrary} class="interactiveIconBackground" style="display:flex;" title="open-library">
+          <ion-icon name="albums-outline" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+        </button>
         <button on:click={toggleSettings} class="interactiveIconBackground" style="display:flex;" title="open-settings">
           <ion-icon name="settings" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
         </button>
