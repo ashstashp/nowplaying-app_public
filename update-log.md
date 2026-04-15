@@ -111,3 +111,10 @@ I've decided to limit all AppImage downloads to my website. I can't guraentee th
 I should really research some stuff before doing it sometimes. - Ashstash
 
 Bro, some of these errors were so confusing ngl.
+
+### v0.9.0 -- 04/07/2026 - Ashstashp
+
+#### Changes Made
+- In app TOS Agreement
+- Twitch Connection Ability
+- Major versions start at patch 0 now, rather than patch 1. (For obvious reasons.)

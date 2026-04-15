@@ -7,6 +7,11 @@ use tiny_http::{Response, Server};
 use tauri_plugin_keyring::KeyringExt;
 use tauri_plugin_os;
 
+#[tauri::command]
+fn close_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 // NEW: Rust command to open the system browser
 #[tauri::command]
 fn open_in_browser(url: String) {
@@ -100,7 +105,8 @@ fn main() {
             open_in_browser,
             get_user_token,
             store_user_token,
-            delete_user_token
+            delete_user_token,
+            close_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -78,6 +78,11 @@ export function getCoverArtUrl(
   return `${baseUrl}/rest/getCoverArt?id=${id}&u=${username}&p=${password}&v=${version}&c=NowPlayingApp`;
 }
 
-export function getStreamUrl(baseUrl: string, id: string): string {
-  return `${baseUrl}/rest/stream?id=${id}`;
+export function getSubsonicStreamUrl(baseUrl: string, id: string, username: string, password: string, version: string): string {
+  return `${baseUrl}/rest/stream?id=${id}&u=${username}&p=${password}&v=${version}&c=NowPlayingApp`;
 }
+
+export function getSubsonicQueue(baseUrl: string, username: string, password: string, version: string) {
+  return `${baseUrl}/rest/getPlayQueue?u=${username}&p=${password}&v=${version}&c=NowPlayingApp&f=json`;
+}
+

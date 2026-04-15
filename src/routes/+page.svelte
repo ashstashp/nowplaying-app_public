@@ -10,7 +10,7 @@
 
   import {message} from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
-  import { createSubsonicClient, getNowPlayingSubsonic, type Track } from "../api/subsonic";
+  import { createSubsonicClient, getSubsonicQueue, getSubsonicStreamUrl, getNowPlayingSubsonic, type Track } from "../api/subsonic";
 
   import { readFile, writeFile } from "../api/storage";
 
@@ -32,6 +32,8 @@
   import { getSpotifyLoginUrl, exchangeCodeForTokens, getNowPlayingSpotify} from "../api/spotify";
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
+    import { exists } from "@tauri-apps/plugin-fs";
+    import { app } from "@tauri-apps/api";
 
   ////////////////////////////////////////////////////////////////
   ///////////////////////// Helpful Stuff ////////////////////////
@@ -157,6 +159,8 @@
             progressMs += 2000;
             nowPlaying.progressMs = progressMs;
           }
+          // console.log(getSubsonicQueue(subsonicUrl, username, password, version));
+          // console.log(getSubsonicStreamUrl(subsonicUrl, nowPlaying.id, username, password, version));
         }
         else {
           nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
@@ -176,6 +180,7 @@
     client = createSubsonicClient(subsonicUrl);
     refreshSubsonic();
   }
+  // const audio = new Audio(/*getSubsonicStreamUrl(subsonicUrl, "3DPgYhGC0p5QESTdDnNU5r", username, password, version)*/"http://192.168.1.97:4533/rest/stream?id=3DPgYhGC0p5QESTdDnNU5r&u=ashstashp&p=EggS@l3d-1945&v=1.16.1&c=NowPlayingApp");
 
 
   ////////////////////////////////////////////////////////////////
@@ -339,13 +344,29 @@
   let showLogoutButton = true;
   let autoLogin = false;
   let displayProgress = true;
-  const appVersion = "v0.8.1";
+  const appVersion = "v0.9.0";
   let currentPlatform = "unknown"; 
+  let acceptedTos = false;
 
   async function openLegal() {
     const url = "https://ashstashp.com/legal.html"
 
     await invoke("open_in_browser", { url });
+  }
+
+  async function open(url: string) {
+    await invoke("open_in_browser", { url });
+  }
+
+  async function acceptTos() {
+    acceptedTos = true;
+    await writeFile("tos", acceptedTos.toString(), "legal");
+  }
+
+  async function voidTos() {
+    acceptedTos = false;
+    await writeFile("tos", acceptedTos.toString(), "legal");
+    await invoke("close_app");
   }
 
   
@@ -462,10 +483,17 @@
     }
 
     const whatDisplayProgress = await readFile("displayProgress", "settings")
-    if (whatDisplayProgress == "true" || whatAutoLogin == "truee") {
+    if (whatDisplayProgress == "true" || whatDisplayProgress == "truee") {
       displayProgress = true;
     } else {
       displayProgress = false;
+    }
+
+    const whatAcceptedTos = await readFile("tos", "legal")
+    if (whatAcceptedTos == "true" || whatAcceptedTos == "truee") {
+      acceptedTos = true;
+    } else {
+      acceptedTos = false;
     }
   }
 
@@ -474,7 +502,9 @@
       currentPlatform = await platform();
       await loadSettingsFiles();
       if (autoLogin && (currentPlatform == "windows" || currentPlatform == "macos")) {
-        await runAutoLogin();
+        if (acceptedTos) {
+          await runAutoLogin();
+        }
       }
     } catch (err) {
       showError("Failed to load saved settings.\n" + err);
@@ -612,13 +642,28 @@
     <!-- Save+Exit Button -->
     <button class="button" style="font-size: {fontSize}px" on:click={saveSettings}>Save and Exit</button>
     <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={discardSettings}>Discard Changes</button>
+    <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={voidTos}>Void TOS</button>
   </div>
 {/snippet}
+
+<!--------------------------------------------------------------------------------------->
+<!------------------------------------- Accept TOS -------------------------------------->
+<!--------------------------------------------------------------------------------------->
+
+{#if acceptedTos == false}
+  <div class="loginContainer">
+    <h1>Terms of Service</h1>
+    <p>By pressing "Accept" below, you agree to our terms of service. Press "View Terms of Service" to review the terms of service.</p>
+    <button class="button" on:click={() => open("https://files.ashstashp.com/nowPlaying_app/legal/tos.txt")}>View Terms of Service</button>
+    <button class="button" on:click={acceptTos}>Accept</button>
+    <button class="button" on:click={voidTos}>Decline</button>
+  </div>
+
 
 <!---------------------------------------------------------------------------------------------->
 <!------------------------------------- Provider Selector -------------------------------------->
 <!---------------------------------------------------------------------------------------------->
-{#if selectedProvider == "" && !showSettings}
+{:else if selectedProvider == "" && !showSettings}
   <div class="loginContainer">
     <!-- Header -->
     <div style="display:flex; flex-direction:row; align-items: center; justify-content: center;">
