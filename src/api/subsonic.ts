@@ -10,7 +10,8 @@ export interface Song {
   artworkUrl: string;
   durationMs: number,
   progressMs: number,
-  isPlaying: boolean
+  isPlaying: boolean,
+  paused: boolean
 }
 
 export interface Playlist {
@@ -78,6 +79,7 @@ export async function getNowPlayingSubsonic(
       durationMs: durationMs, 
       progressMs: progressMs, 
       isPlaying: isPlaying,
+      paused: true,
     }
     return nowPlaying;
   } catch (err) {
@@ -131,7 +133,7 @@ export async function getPlaylists(
 
   for (const list in response.playlists.playlist) {
     // console.log(response.playlists[list][0].id)
-    console.log(list)
+    // console.log(list)
     const playlist:Playlist = {
       "id": response.playlists.playlist[list].id,
       "title": response.playlists.playlist[list].name,
@@ -163,7 +165,7 @@ export async function getPlaylists(
     playlists.push(playlist)
   }
 
-  console.log(playlists[0]);
+  // console.log(playlists[0]);
   return playlists;
 }
 
@@ -227,50 +229,68 @@ export async function getAlbums(
     albums.push(album)
   }
 
-  console.log(albums[0]);
+  // console.log(albums[0]);
   return albums;
 }
 
-async function getSongInfo(
+export async function getSongInfo(
   client: ReturnType<typeof createSubsonicClient>, 
   baseUrl: string, 
   username: string, 
   password: string, 
   version: string,
   id: string): Promise<Song> {
-    const res = await client.get("/rest/getSong", {
-      params: {
-        id: id,
-        u: username,
-        p: password,
-        v: version,
-        type: "recent",
-        size: "500",
-        c: "NowPlayingApp",
-        f: "json"
+    if (id != "") {
+      const res = await client.get("/rest/getSong", {
+        params: {
+          id: id,
+          u: username,
+          p: password,
+          v: version,
+          type: "recent",
+          size: "500",
+          c: "NowPlayingApp",
+          f: "json"
+        }
+      });
+    
+      const response = res.data["subsonic-response"];
+
+      if (!response || response.status != "ok") {
+        throw new Error("Subsonic Fetch Failed");
       }
-    });
-  
-    const response = res.data["subsonic-response"];
 
-    if (!response || response.status != "ok") {
-      throw new Error("Subsonic Fetch Failed");
+      const song: Song = {
+        "id": id,
+        "title": response.song.title,
+        "album": response.song.album,
+        "albumId": response.song.parent,
+        "artist": response.song.artist,
+        "artworkUrl": `${baseUrl}/rest/getCoverArt?id=${id}&u=${username}&p=${password}&v=${version}&c=NowPlayingApp`,
+        "durationMs": response.song.duration,
+        "progressMs": 0,
+        "isPlaying": false,
+        "paused": true,
+      }
+      
+
+      // console.log(response);
+      
+      return song;
+    } else {
+      const song: Song = {
+        "id": "",
+        "title": "Not Playing",
+        "artist": "N/A",
+        "album": "N/A",
+        "albumId": "",
+        "artworkUrl": "N/A",
+        "durationMs": -1,
+        "progressMs": 0,
+        "isPlaying": false,
+        "paused": true
+      }
+
+      return song;
     }
-
-    const song: Song = {
-      "id": id,
-      "title": response.song.title,
-      "album": response.song.album,
-      "albumId": response.song.parent,
-      "artist": response.song.artist,
-      "artworkUrl": `${baseUrl}/rest/getCoverArt?id=${id}&u=${username}&p=${password}&v=${version}&c=NowPlayingApp`,
-      "durationMs": response.song.duration,
-      "progressMs": 0,
-      "isPlaying": false,
-    }
-    
-
-    console.log(response);
-    
-    return song;
 }

@@ -10,7 +10,7 @@
 
   import {message} from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
-  import { createSubsonicClient, getSubsonicQueue, getSubsonicStreamUrl, getNowPlayingSubsonic, getPlaylists, getAlbums } from "../api/subsonic";
+  import { createSubsonicClient, getSubsonicQueue, getSubsonicStreamUrl, getNowPlayingSubsonic, getPlaylists, getAlbums, getSongInfo } from "../api/subsonic";
   import { type Playlist, type Album, type Song } from "../api/subsonic";
 
   import { readFile, writeFile } from "../api/storage";
@@ -537,6 +537,8 @@
   let selectedSong: Song;
   let selectedArtist: string;
 
+  let queue: Array<String> = [];
+
   function toggleLibrary() {
     showLibrary = !showLibrary;
   };
@@ -589,15 +591,21 @@
 
   function pause() {
     stream.pause()
+    nowPlaying.pause = true;
   }
 
   function resume() {
     stream.play()
+    nowPlaying.pause = false;
   }
 
   function subsonicPlay(id: string) {
+    stream = new Audio();
     let url = `${subsonicUrl}/rest/stream?id=${id}&u=${username}&p=${password}&v=${version}&&c=NowPlayingApp`;
+    nowPlaying = getSongInfo(client, subsonicUrl, username, password, version, id);
+    nowplaying.pause = false;
     console.log(url)
+    stream.stop()
     stream.src = url;
     stream.play();
   }
@@ -980,9 +988,19 @@
             <button on:click={subsonicPrevSong} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-back" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
-            <button on:click={() => {subsonicPlay("NTt3W8F4HVUawr5QsFLN8a")}} class="interactiveIconBackground" title="Play">
+            {#if nowPlaying.isPlaying}
+            <button on:click={pause} class="interactiveIconBackground" title="Play">
               <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
+            {:else if nowPlaying.pause}
+            <button on:click={resume} class="interactiveIconBackground" title="Play">
+              <ion-icon name="pause" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+            </button>
+            {:else}
+            <button on:click={() => {subsonicPlay("NTt3W8F4HVUawr5QsFLN8a")}} class="interactiveIconBackground" title="Play">
+              <ion-icon name="pause" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+            </button>
+            {/if}
             <button on:click={subsonicNextSong} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-forward" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
