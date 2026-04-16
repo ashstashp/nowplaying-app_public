@@ -10,7 +10,8 @@
 
   import {message} from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
-  import { createSubsonicClient, getSubsonicQueue, getSubsonicStreamUrl, getNowPlayingSubsonic, type Track } from "../api/subsonic";
+  import { createSubsonicClient, getSubsonicQueue, getSubsonicStreamUrl, getNowPlayingSubsonic, getPlaylists, getAlbums } from "../api/subsonic";
+  import { type Playlist, type Album, type Song } from "../api/subsonic";
 
   import { readFile, writeFile } from "../api/storage";
 
@@ -34,6 +35,7 @@
   import { onMount } from "svelte";
     import { exists } from "@tauri-apps/plugin-fs";
     import { app } from "@tauri-apps/api";
+    import { audioDir } from "@tauri-apps/api/path";
 
   ////////////////////////////////////////////////////////////////
   ///////////////////////// Helpful Stuff ////////////////////////
@@ -131,7 +133,11 @@
   /////////////////////////////////////////////////////////////////
   let client = null;
 
-  let nowPlaying: Track = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
+  let playlists: Array<Playlist>;
+  
+  let albums: Array<Album>;
+
+  let nowPlaying: Song = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
 
   let progressMs = 0;
 
@@ -159,8 +165,9 @@
             progressMs += 2000;
             nowPlaying.progressMs = progressMs;
           }
-          console.log(getSubsonicQueue(subsonicUrl, username, password, version));
+          // console.log(getSubsonicQueue(subsonicUrl, username, password, version));
           // console.log(getSubsonicStreamUrl(subsonicUrl, nowPlaying.id, username, password, version));
+          // console.log(playlists);
         }
         else {
           nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
@@ -178,6 +185,11 @@
   async function connectSubsonic() {
     loggedIn = true;
     client = createSubsonicClient(subsonicUrl);
+    playlists = await getPlaylists(client, subsonicUrl, username, password, version)
+    albums = await getAlbums(client, subsonicUrl, username, password, version)
+    selectedPlaylist = playlists[0];
+    selectedAlbum = albums[0];
+    // console.log(playlists);
     refreshSubsonic();
   }
   // const audio = new Audio(/*getSubsonicStreamUrl(subsonicUrl, "3DPgYhGC0p5QESTdDnNU5r", username, password, version)*/"http://192.168.1.97:4533/rest/stream?id=3DPgYhGC0p5QESTdDnNU5r&u=ashstashp&p=EggS@l3d-1945&v=1.16.1&c=NowPlayingApp");
@@ -515,10 +527,80 @@
   ///////////////////////// Library Page ////////////////////////
   ///////////////////////////////////////////////////////////////
   let showLibrary = false;
+  let showPlaylist = false;
+  let showAlbum = false;
+  let showSong = false;
+  let showArtist = false;
+  
+  let selectedPlaylist: Playlist;
+  let selectedAlbum: Album;
+  let selectedSong: Song;
+  let selectedArtist: string;
 
   function toggleLibrary() {
     showLibrary = !showLibrary;
   };
+
+  function togglePlaylist() {
+    showPlaylist = !showPlaylist;
+  }
+
+  function toggleAlbum() {
+    showAlbum = !showAlbum;
+  }
+
+  function toggleShowSong() {
+    showSong = !showSong;
+  }
+
+  function toggleShowArtist() {
+    showArtist = !showArtist;
+  }
+
+  function setSelectedPlaylist(playlist: Playlist) {
+    selectedPlaylist = playlist;
+  }
+
+  function setSelectedAlbum(album: Album) {
+    selectedAlbum = album;
+  }
+
+  function setSelectedSong(song: Song) {
+    selectedSong = song;
+  }
+
+  function setSelectedArtist(artist: string) {
+    selectedArtist = artist;
+  }
+
+  //////////////////////////////////////////////////////////////
+  //////////////////////////// Audio ///////////////////////////
+  //////////////////////////////////////////////////////////////
+
+  let stream = new Audio();
+
+  function subsonicNextSong() {
+
+  }
+
+  function subsonicPrevSong() {
+    
+  }
+
+  function pause() {
+    stream.pause()
+  }
+
+  function resume() {
+    stream.play()
+  }
+
+  function subsonicPlay(id: string) {
+    let url = `${subsonicUrl}/rest/stream?id=${id}&u=${username}&p=${password}&v=${version}&&c=NowPlayingApp`;
+    console.log(url)
+    stream.src = url;
+    stream.play();
+  }
 
 
   ///////////////////////////////////////////////////////////////
@@ -656,28 +738,101 @@
   </div>
 {/snippet}
 
+<!-------------------------------------------------------->
+<!------------------- Playlist Screen -------------------->
+<!-------------------------------------------------------->
+{#snippet playlist(playlist: Playlist)}
+  <div class="loginContainer">
+    <div style="display:flex; flex-direction: row; padding: 20px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
+      <img class="albumCover" style="height:{artSize*(3/4)}px; width:{artSize*(3/4)}px; margin-right: 10px;" src={playlist.artworkUrl} alt="Playlist Artwork"/>
+      <div style="display:flex; flex-direction: column; align-items:center; justify-content: center;">
+        <h2>{playlist.title}</h2>
+        <p>{playlist.comment}</p>
+      </div>
+    </div>
+
+    <div style="padding: 10px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
+      {#each playlist.songs as song}
+        <div style="display:flex; flex-direction: row; padding: 5px; margin: 5px; border-radius: 8px; border-style: solid; border-width: 2px; border-color: {fontColorStr}">
+          <img class="albumCover" style="height:{artSize*(1/2)}px; width:{artSize*(1/2)}px; margin-right: 10px;" src={song.artworkUrl} alt="Playlist Artwork"/>
+          <div style="display:flex; flex-direction: column; align-items:center; justify-content: center; padding:0px">
+            <h2 style="margin:-5px">{song.title}</h2>
+            <p>{song.artist}</p>
+          </div>
+        </div>
+      {/each}
+    </div>
+    <button class="button" style="font-size: {fontSize}px" on:click={togglePlaylist}>Back</button>
+  </div>
+{/snippet}
+
+{#snippet album(album: Album)}
+  <div class="loginContainer">
+    <div style="display:flex; flex-direction: row; padding: 20px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
+      <img class="albumCover" style="height:{artSize*(3/4)}px; width:{artSize*(3/4)}px; margin-right: 10px;" src={album.artworkUrl} alt="Playlist Artwork"/>
+      <div style="display:flex; flex-direction: column; align-items:center; justify-content: center;">
+        <h2>{album.title}</h2>
+        <p>{album.artist}</p>
+      </div>
+    </div>
+
+    <div style="padding: 10px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
+      {#each album.songs as song}
+        <div style="display:flex; flex-direction: row; padding: 5px; margin: 5px; border-radius: 8px; border-style: solid; border-width: 2px; border-color: {fontColorStr}">
+          <img class="albumCover" style="height:{artSize*(1/2)}px; width:{artSize*(1/2)}px; margin-right: 10px;" src={song.artworkUrl} alt="Playlist Artwork"/>
+          <div style="display:flex; flex-direction: column; align-items:center; justify-content: center; padding:0px">
+            <h2 style="margin:-5px">{song.title}</h2>
+            <p>{song.artist}</p>
+          </div>
+        </div>
+      {/each}
+    </div>
+    <button class="button" style="font-size: {fontSize}px" on:click={toggleAlbum}>Back</button>
+  </div>
+{/snippet}
+
 <!------------------------------------------------------->
 <!------------------- Library Screen -------------------->
 <!------------------------------------------------------->
 {#snippet library()}
+  {#if showPlaylist}
+    {@render playlist(selectedPlaylist)}
+  {:else if showAlbum}
+    {@render album(selectedAlbum)}
+  {:else}
   <div class="loginContainer">
     <h1>Library</h1>
     {#if selectedProvider == "spotify"}
       <h2>Spotify is currently not supported</h2>
     {:else}
       <h2>Playlists:</h2>
-        <div style="display:flex; flex-direction: row; align-items:flex-start; justify-content:flex-start;">
-          <p style="margin:10px;" >Playlist 1</p>
-          <p style="margin:10px;" >Playlist 2</p>
-        </div>
+        {#each playlists as playlist}
+          <button style="background: transparent; border-color:rgba(0, 0, 0, 0)" on:click={() => {setSelectedPlaylist(playlist); togglePlaylist()}}>
+            <div style="display:flex; flex-direction: row; padding: 20px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
+              <img class="albumCover" style="height:{artSize*(3/4)}px; width:{artSize*(3/4)}px; margin-right: 10px;" src={playlist.artworkUrl} alt="Playlist Artwork"/>
+              <div style="display:flex; flex-direction: column; align-items:center; justify-content: center;">
+                <h2>{playlist.title}</h2>
+                <p>{playlist.comment}</p>
+              </div>
+            </div>
+          </button>
+        {/each}
       <h2>Albums</h2>
-        <div style="display:flex; flex-direction: row; align-items:flex-start; justify-content:flex-start;">
-          <p style="margin:10px;" >Album 1</p>
-          <p style="margin:10px;" >Album 2</p>
-        </div>
+        {#each albums as album}
+          <button style="background: transparent; border-color:rgba(0, 0, 0, 0)" on:click={() => {setSelectedAlbum(album); toggleAlbum()}}>
+            <div style="display:flex; flex-direction: row; padding: 20px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
+              <img class="albumCover" style="height:{artSize*(3/4)}px; width:{artSize*(3/4)}px; margin-right: 10px;" src={album.artworkUrl} alt="Playlist Artwork"/>
+              <div style="display:flex; flex-direction: column; align-items:center; justify-content: center;">
+                <h2>{album.title}</h2>
+                <p>{album.artist}</p>
+              </div>
+            </div>
+          </button>
+        {/each}
     {/if}
     <button class="button" style="font-size: {fontSize}px" on:click={toggleLibrary}>Close</button>
   </div>
+  {/if}
 {/snippet}
 
 
@@ -798,6 +953,8 @@
     {@render settings()}
   {:else if showLibrary}
     {@render library()}
+  {:else if showPlaylist}
+    {@render playlist(selectedPlaylist)}
   {:else}
   <div class="backgroundContainer" style="display: flex; flex-direction: column; justify-content:center;">
     <div style="display: flex; flex-direction: row; justify-content:space-between;">
@@ -816,17 +973,32 @@
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
           <h1 style="font-size: {fontSize + 16}px;">{nowPlaying.title}</h1>
           <h2 style="font-size: {fontSize + 8}px;">{nowPlaying.artist}</h2>
+
+
+          <!-- Playback Control -->
+          <div>
+            <button on:click={subsonicPrevSong} class="interactiveIconBackground" title="Previous Song">
+              <ion-icon name="play-back" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+            </button>
+            <button on:click={() => {subsonicPlay("NTt3W8F4HVUawr5QsFLN8a")}} class="interactiveIconBackground" title="Play">
+              <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+            </button>
+            <button on:click={subsonicNextSong} class="interactiveIconBackground" title="Previous Song">
+              <ion-icon name="play-forward" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+            </button>
+          </div>
+          
         </div>
+        
       </div>
 
       <!-- Buttons -->
       <div style="display:flex; flex-direction: column; justify-content: space-between;">
+        <!-- Logout -->
         {#if showLogoutButton}
         <button on:click={logout} class="interactiveIconBackground" style="display:flex;" title="logout">
           <ion-icon name="log-out-outline" style="color:#f00; font-size:{fontSize + 14}px;"></ion-icon>
         </button>
-        {:else}
-        <button class="interactiveIconBackground" style="display:flex;">{""}</button>
         {/if}
         <button on:click={toggleLibrary} class="interactiveIconBackground" style="display:flex;" title="open-library">
           <ion-icon name="albums-outline" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>

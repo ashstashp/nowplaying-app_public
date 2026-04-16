@@ -1,6 +1,6 @@
 import { generatePKCE } from "../oauth/pkce";
 import { writeFile, readFile } from "./storage";
-import type { Track } from "./subsonic";
+import type { Song } from "./subsonic";
 
 const REDIRECT_URI = "http://127.0.0.1:1420/callback";
 
@@ -42,7 +42,7 @@ export async function exchangeCodeForTokens(code: string, CLIENT_ID: string) {
   return tokens;
 }
 
-export async function getNowPlayingSpotify(tokens: any): Promise<Track> {
+export async function getNowPlayingSpotify(tokens: any): Promise<Song> {
   if (!tokens?.access_token) {
     throw new Error("Missing access token");
   }
@@ -83,7 +83,7 @@ export async function getNowPlayingSpotify(tokens: any): Promise<Track> {
   const durationMs = data.item? data.item.duration_ms : 0;
   const progressMs = data.item? data.progress_ms : -1;
   const isPlaying = data.item? data.is_playing : false;
-  const nowPlaying: Track = {
+  const nowPlaying: Song = {
     id: id, 
     title: title, 
     artist: artist, 
