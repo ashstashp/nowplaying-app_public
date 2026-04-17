@@ -190,7 +190,7 @@
     selectedPlaylist = playlists[0];
     selectedAlbum = albums[0];
     // console.log(playlists);
-    refreshSubsonic();
+    //refreshSubsonic();
   }
   // const audio = new Audio(/*getSubsonicStreamUrl(subsonicUrl, "3DPgYhGC0p5QESTdDnNU5r", username, password, version)*/"http://192.168.1.97:4533/rest/stream?id=3DPgYhGC0p5QESTdDnNU5r&u=ashstashp&p=EggS@l3d-1945&v=1.16.1&c=NowPlayingApp");
 
@@ -301,6 +301,18 @@
   let mainColorStr = "rgb(0, 0, 0)";
   let fontColorStr = "rgb(255, 255, 255)";
   let secondaryColorStr = "rgba(0, 0, 0, 0.5)";
+
+  function updateSliderProgress() {
+    let percent: number = (stream.currentTime / stream.duration) * 100;
+
+    if (!percent) {
+      percent = 0;
+    }
+
+    // console.log(percent);
+
+    document.documentElement.style.setProperty("--range-ptc", percent + "%")
+  }
 
   function updateColors() {
     mainColorStr = "rgb(" + mainColor[0] + ", " + mainColor[1] + ", " + mainColor[2] + ")";
@@ -580,9 +592,22 @@
   //////////////////////////////////////////////////////////////
 
   let stream = new Audio();
+  let duration = 0;
+  let progress = 0;
+
+
+  setInterval(checkTime, 1);
+
+  function checkTime() {
+    // console.log(nowPlaying.progressMs);
+    if (stream.currentTime >= stream.duration) {
+      subsonicPlay("KSETzmMwfSCiB2P33j6Oib");
+    }
+    updateSliderProgress();
+  }
 
   function subsonicNextSong() {
-
+    nowPlaying.progressMs = nowPlaying.durationMs;
   }
 
   function subsonicPrevSong() {
@@ -591,25 +616,38 @@
 
   function pause() {
     stream.pause()
-    nowPlaying.pause = true;
+    nowPlaying.paused = true;
   }
 
   function resume() {
     stream.play()
-    nowPlaying.pause = false;
+    nowPlaying.paused = false;
   }
 
-  function subsonicPlay(id: string) {
-    stream = new Audio();
-    let url = `${subsonicUrl}/rest/stream?id=${id}&u=${username}&p=${password}&v=${version}&&c=NowPlayingApp`;
-    nowPlaying = getSongInfo(client, subsonicUrl, username, password, version, id);
-    nowplaying.pause = false;
-    console.log(url)
-    stream.stop()
+  async function subsonicPlay(id: string) {
+    stream.pause()
+    let url = `${subsonicUrl}/rest/stream?id=${id}&u=${username}&p=${password}&v=${version}&c=NowPlayingApp`;
+    nowPlaying = await getSongInfo(client, subsonicUrl, username, password, version, id);
+    nowPlaying.paused = false;
+    nowPlaying.isPlaying = true;
+
+    stream.addEventListener("loadedmetadata", () => {
+      duration = stream.duration;
+    });
+
+    stream.addEventListener("timeupdate", () => {
+      progress = stream.currentTime;
+    });
+
+    // console.log(nowPlaying);
+    // console.log(url)
     stream.src = url;
     stream.play();
   }
 
+  function seek() {
+    stream.currentTime = progress;
+  }
 
   ///////////////////////////////////////////////////////////////
   ///////////////////////// Progress Bar ////////////////////////
@@ -618,7 +656,7 @@
   // refresh stuff
   async function refresh() {
     if (selectedProvider == "subsonic" && loggedIn) {
-      refreshSubsonic();
+      //refreshSubsonic();
     } else if (selectedProvider == "spotify" && loggedIn) {
       refreshSpotify();
     }
@@ -973,7 +1011,7 @@
             <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px;"/>
           {/if}
           {#if nowPlaying.isPlaying == true}
-          <img class="albumCover" style="height:{artSize}px; width:{artSize}px;" src={imageUrl} alt={`Cover art for ${nowPlaying.title} by ${nowPlaying.artist}`} />
+          <img class="albumCover" style="height:{artSize}px; width:{artSize}px;" src={nowPlaying.artworkUrl? nowPlaying.artworkUrl : "N/A"} alt={`Cover art for ${nowPlaying.title} by ${nowPlaying.artist}`} />
           {:else}
           <ion-icon name="musical-note-outline" style="font-size:{artSize}px; color:{fontColorStr}"></ion-icon>
           {/if}
@@ -988,17 +1026,17 @@
             <button on:click={subsonicPrevSong} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-back" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
-            {#if nowPlaying.isPlaying}
-            <button on:click={pause} class="interactiveIconBackground" title="Play">
-              <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
-            </button>
-            {:else if nowPlaying.pause}
-            <button on:click={resume} class="interactiveIconBackground" title="Play">
+            {#if nowPlaying.isPlaying && !nowPlaying.paused}
+            <button on:click={pause} class="interactiveIconBackground" title="Pause">
               <ion-icon name="pause" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+            </button>
+            {:else if nowPlaying.paused}
+            <button on:click={resume} class="interactiveIconBackground" title="Play">
+              <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
             {:else}
             <button on:click={() => {subsonicPlay("NTt3W8F4HVUawr5QsFLN8a")}} class="interactiveIconBackground" title="Play">
-              <ion-icon name="pause" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+              <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
             {/if}
             <button on:click={subsonicNextSong} class="interactiveIconBackground" title="Previous Song">
@@ -1027,11 +1065,13 @@
       </div>
     </div>
     {#if displayProgress == true}
-    <div class="progressBar2" style="width: 100%">
+    <!-- <div class="progressBar2" style="width: 100%">
       <div class="progressBar1" style="width:{(nowPlaying.progressMs/nowPlaying.durationMs)*100}%"></div>
-      <!-- <p>{nowPlaying.progressMs}/{nowPlaying.durationMs}</p> -->
-    </div>
+      <p>{nowPlaying.progressMs}/{nowPlaying.durationMs}</p>
+    </div> -->
+    <input type="range" class="generator-input" min=0 max={duration} bind:value={progress} on:input={seek}/>
     {/if}
+    
   </div>
   {/if}
 {/if}
@@ -1052,6 +1092,7 @@
   --main-color: rgb(0, 0, 0);
   --secondary-color: rgba(0, 0, 0, 0.5);
   --font-color: rgb(255, 255, 255);
+  --range-ptc: 0%;
 }
 
 main {
@@ -1093,6 +1134,57 @@ input {
   border-radius: 8px;
   padding: 5px;
   border-color: rgba(0, 0, 0, 0);
+}
+
+.generator-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 97%;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* --- Webkit Browsers --- */
+.generator-input::-webkit-slider-runnable-track {
+  height: 8px;
+  background: linear-gradient(
+    to right, 
+    rgb(255, 0, 255) 0%,
+    rgb(255, 0, 255) var(--range-ptc), 
+    rgb(255, 255, 255) var(--range-ptc),
+    rgb(255, 255, 255) 100%);
+  border-radius: 10px;
+  border: 0px solid var(--main-color);
+  box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.1);
+}
+
+.generator-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 24px;
+  width: 24px;
+  background: var(--main-color);
+  border-radius: 30px;
+  border: 2px solid var(--font-color);
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+  margin-top: -8px;
+}
+
+/* --- Firefox --- */
+.generator-input::-moz-range-track {
+  height: 8px;
+  background: linear-gradient(to right, #6366f1 var(--range-pct, 0%), #e2e8f0 var(--range-pct, 0%));
+  border-radius: 10px;
+  border: 0px solid #cbd5e1;
+  box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.1);
+}
+
+.generator-input::-moz-range-thumb {
+  height: 24px;
+  width: 24px;
+  background: #4f46e5;
+  border-radius: 30px;
+  border: 2px solid #ffffff;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .button {

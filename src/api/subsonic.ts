@@ -267,7 +267,7 @@ export async function getSongInfo(
         "albumId": response.song.parent,
         "artist": response.song.artist,
         "artworkUrl": `${baseUrl}/rest/getCoverArt?id=${id}&u=${username}&p=${password}&v=${version}&c=NowPlayingApp`,
-        "durationMs": response.song.duration,
+        "durationMs": response.song.duration * 1000,
         "progressMs": 0,
         "isPlaying": false,
         "paused": true,
