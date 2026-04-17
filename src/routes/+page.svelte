@@ -41,6 +41,19 @@
   ///////////////////////// Helpful Stuff ////////////////////////
   ////////////////////////////////////////////////////////////////
 
+  const notPlaying: Song = {
+        "id": "",
+        "title": "Not Playing",
+        "artist": "N/A",
+        "album": "N/A",
+        "albumId": "",
+        "artworkUrl": "N/A",
+        "durationMs": 1,
+        "progressMs": 0,
+        "isPlaying": false,
+        "paused": true
+      }
+
   const defaultTimeoutTime = 5000;
 
   async function showError(err: string) {
@@ -543,13 +556,22 @@
   let showAlbum = false;
   let showSong = false;
   let showArtist = false;
+
+  let queue: Array<string> = [];
   
   let selectedPlaylist: Playlist;
   let selectedAlbum: Album;
   let selectedSong: Song;
   let selectedArtist: string;
 
-  let queue: Array<String> = [];
+  function makeQueue(list) {
+    for (const i in list.songs) {
+      const song = list.songs[i]
+//      console.log(song.id);
+      queue.push(song.id);
+    }
+    console.log(queue);
+  }
 
   function toggleLibrary() {
     showLibrary = !showLibrary;
@@ -599,15 +621,30 @@
   setInterval(checkTime, 1);
 
   function checkTime() {
-    // console.log(nowPlaying.progressMs);
-    if (stream.currentTime >= stream.duration) {
-      subsonicPlay("KSETzmMwfSCiB2P33j6Oib");
+    if (nowPlaying.isPlaying) {
+      // console.log(nowPlaying.progressMs);
+      if (stream.currentTime >= stream.duration) {
+        subsonicNextSong();
+      }
     }
     updateSliderProgress();
   }
 
   function subsonicNextSong() {
     nowPlaying.progressMs = nowPlaying.durationMs;
+    stream.currentTime = 0;
+    stream.pause()
+    let index = 0;
+
+    try{
+
+      if (nowPlaying.id != "") index = queue.indexOf(nowPlaying.id) + 1;
+      console.log(queue[index]);
+      subsonicPlay(queue[index]);
+    } catch(e) {
+      nowPlaying = notPlaying;
+      showWarn("Queue Empty");
+    }
   }
 
   function subsonicPrevSong() {
@@ -784,9 +821,9 @@
   </div>
 {/snippet}
 
-<!-------------------------------------------------------->
-<!------------------- Playlist Screen -------------------->
-<!-------------------------------------------------------->
+<!----------------------------------------------------------->
+<!---------------- Playlist & Album Screens ----------------->
+<!----------------------------------------------------------->
 {#snippet playlist(playlist: Playlist)}
   <div class="loginContainer">
     <div style="display:flex; flex-direction: row; padding: 20px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
@@ -795,6 +832,9 @@
         <h2>{playlist.title}</h2>
         <p>{playlist.comment}</p>
       </div>
+      <button class="interactiveIconBackground" on:click={() => makeQueue(playlist)} title="Play Playlist">
+        <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
+      </button>
     </div>
 
     <div style="padding: 10px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
@@ -1149,10 +1189,10 @@ input {
   height: 8px;
   background: linear-gradient(
     to right, 
-    rgb(255, 0, 255) 0%,
-    rgb(255, 0, 255) var(--range-ptc), 
-    rgb(255, 255, 255) var(--range-ptc),
-    rgb(255, 255, 255) 100%);
+    var(--main-color) 0%,
+    var(--main-color) var(--range-ptc), 
+    var(--font-color) var(--range-ptc),
+    var(--font-color) 100%);
   border-radius: 10px;
   border: 0px solid var(--main-color);
   box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.1);
