@@ -315,7 +315,7 @@
   let fontColorStr = "rgb(255, 255, 255)";
   let secondaryColorStr = "rgba(0, 0, 0, 0.5)";
 
-  function updateSliderProgress() {
+  function updateProgressBar() {
     let percent: number = (stream.currentTime / stream.duration) * 100;
 
     if (!percent) {
@@ -324,7 +324,19 @@
 
     // console.log(percent);
 
-    document.documentElement.style.setProperty("--range-ptc", percent + "%")
+    document.documentElement.style.setProperty("--dur-ptc", percent + "%")
+  }
+
+  function updateVolBar() {
+    let percent: number = (stream.volume) * 100;
+
+    if (!percent) {
+      percent = volume * 100;
+    }
+
+    // console.log(percent);
+
+    document.documentElement.style.setProperty("--vol-ptc", percent + "%")
   }
 
   function updateColors() {
@@ -617,8 +629,11 @@
   let duration = 0;
   let progress = 0;
 
+  let volume = 1;
+
 
   setInterval(checkTime, 1);
+  setInterval(updateVolBar, 1);
 
   function checkTime() {
     if (nowPlaying.isPlaying) {
@@ -627,7 +642,7 @@
         subsonicNextSong();
       }
     }
-    updateSliderProgress();
+    updateProgressBar();
   }
 
   function subsonicNextSong() {
@@ -684,6 +699,10 @@
 
   function seek() {
     stream.currentTime = progress;
+  }
+
+  function vol() {
+    stream.volume = volume;
   }
 
   ///////////////////////////////////////////////////////////////
@@ -1093,7 +1112,7 @@
         <!-- Logout -->
         {#if showLogoutButton}
         <button on:click={logout} class="interactiveIconBackground" style="display:flex;" title="logout">
-          <ion-icon name="log-out-outline" style="color:#f00; font-size:{fontSize + 14}px;"></ion-icon>
+          <ion-icon name="log-out-outline" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
         </button>
         {/if}
         <button on:click={toggleLibrary} class="interactiveIconBackground" style="display:flex;" title="open-library">
@@ -1104,12 +1123,19 @@
         </button>
       </div>
     </div>
+    <div style="display:flex; flex-direction: row; align-items: flex-start;">
+      <ion-icon name="{volume > .75? "volume-high" : volume > .25? "volume-medium" : volume > 0? "volume-low" : "volume-off"}" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+      <input type="range" class="volume" min=0 max=1 bind:value={progress} on:input={vol}/>
+    </div>
     {#if displayProgress == true}
     <!-- <div class="progressBar2" style="width: 100%">
       <div class="progressBar1" style="width:{(nowPlaying.progressMs/nowPlaying.durationMs)*100}%"></div>
       <p>{nowPlaying.progressMs}/{nowPlaying.durationMs}</p>
     </div> -->
-    <input type="range" class="generator-input" min=0 max={duration} bind:value={progress} on:input={seek}/>
+    <div style="display:flex; flex-direction: row">
+      <ion-icon name="time" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+      <input type="range" class="duration" min=0 max={duration} bind:value={progress} on:input={seek}/>
+    </div>
     {/if}
     
   </div>
@@ -1132,7 +1158,8 @@
   --main-color: rgb(0, 0, 0);
   --secondary-color: rgba(0, 0, 0, 0.5);
   --font-color: rgb(255, 255, 255);
-  --range-ptc: 0%;
+  --dur-ptc: 0%;
+  --vol-ptc: 0%;
 }
 
 main {
@@ -1176,7 +1203,11 @@ input {
   border-color: rgba(0, 0, 0, 0);
 }
 
-.generator-input {
+/* ---------------- */
+/* --- Duration --- */
+/* ---------------- */
+
+.duration {
   -webkit-appearance: none;
   appearance: none;
   width: 97%;
@@ -1185,20 +1216,20 @@ input {
 }
 
 /* --- Webkit Browsers --- */
-.generator-input::-webkit-slider-runnable-track {
+.duration::-webkit-slider-runnable-track {
   height: 8px;
   background: linear-gradient(
     to right, 
     var(--main-color) 0%,
-    var(--main-color) var(--range-ptc), 
-    var(--font-color) var(--range-ptc),
+    var(--main-color) var(--dur-ptc), 
+    var(--font-color) var(--dur-ptc),
     var(--font-color) 100%);
   border-radius: 10px;
   border: 0px solid var(--main-color);
   box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.1);
 }
 
-.generator-input::-webkit-slider-thumb {
+.duration::-webkit-slider-thumb {
   -webkit-appearance: none;
   height: 24px;
   width: 24px;
@@ -1210,15 +1241,15 @@ input {
 }
 
 /* --- Firefox --- */
-.generator-input::-moz-range-track {
+.duration::-moz-range-track {
   height: 8px;
-  background: linear-gradient(to right, #6366f1 var(--range-pct, 0%), #e2e8f0 var(--range-pct, 0%));
+  background: linear-gradient(to right, #6366f1 var(--dur-pct, 0%), #e2e8f0 var(--dur-pct, 0%));
   border-radius: 10px;
   border: 0px solid #cbd5e1;
   box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.1);
 }
 
-.generator-input::-moz-range-thumb {
+.duration::-moz-range-thumb {
   height: 24px;
   width: 24px;
   background: #4f46e5;
@@ -1226,6 +1257,65 @@ input {
   border: 2px solid #ffffff;
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
 }
+
+/* -------------- */
+/* --- Volume --- */
+/* -------------- */
+
+.volume {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 97%;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* --- Webkit Browsers --- */
+.volume::-webkit-slider-runnable-track {
+  height: 8px;
+  background: linear-gradient(
+    to right, 
+    var(--main-color) 0%,
+    var(--main-color) var(--vol-ptc), 
+    var(--font-color) var(--vol-ptc),
+    var(--font-color) 100%);
+  border-radius: 10px;
+  border: 0px solid var(--main-color);
+  box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.1);
+}
+
+.volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 24px;
+  width: 24px;
+  background: var(--main-color);
+  border-radius: 30px;
+  border: 2px solid var(--font-color);
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+  margin-top: -8px;
+}
+
+/* --- Firefox --- */
+.volume::-moz-range-track {
+  height: 8px;
+  background: linear-gradient(to right, #6366f1 var(--vol-pct, 0%), #e2e8f0 var(--vol-pct, 0%));
+  border-radius: 10px;
+  border: 0px solid #cbd5e1;
+  box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.1);
+}
+
+.volume::-moz-range-thumb {
+  height: 24px;
+  width: 24px;
+  background: #4f46e5;
+  border-radius: 30px;
+  border: 2px solid #ffffff;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ------------------- */
+/* --- Other stuff --- */
+/* ------------------- */
 
 .button {
   margin: 5px;
