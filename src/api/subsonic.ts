@@ -254,7 +254,7 @@ export async function getSongInfo(
         }
       });
     
-      const response = res.data["subsonic-response"];
+      const response = await res.data["subsonic-response"];
 
       if (!response || response.status != "ok") {
         throw new Error("Subsonic Fetch Failed");

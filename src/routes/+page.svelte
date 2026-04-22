@@ -393,7 +393,7 @@
   let showLogoutButton = true;
   let autoLogin = false;
   let displayProgress = true;
-  const appVersion = "v0.9.0";
+  const appVersion = "v1.0.0-pre_release";
   let currentPlatform = "unknown"; 
   let acceptedTos = false;
 
@@ -582,7 +582,17 @@
 //      console.log(song.id);
       queue.push(song.id);
     }
-    console.log(queue);
+    // console.log(queue);
+  }
+
+  function clearQueue() {
+    queue = [];
+  }
+
+  function shuffleQueue() {
+    const shuffled = queue.sort(() => Math.random() - 0.5);
+    queue = shuffled;
+    // console.log(queue);
   }
 
   function toggleLibrary() {
@@ -639,13 +649,13 @@
     if (nowPlaying.isPlaying) {
       // console.log(nowPlaying.progressMs);
       if (stream.currentTime >= stream.duration) {
-        subsonicNextSong();
+        nextSong();
       }
     }
     updateProgressBar();
   }
 
-  function subsonicNextSong() {
+  function nextSong() {
     nowPlaying.progressMs = nowPlaying.durationMs;
     stream.currentTime = 0;
     stream.pause()
@@ -655,15 +665,25 @@
 
       if (nowPlaying.id != "") index = queue.indexOf(nowPlaying.id) + 1;
       console.log(queue[index]);
-      subsonicPlay(queue[index]);
+      play(queue[index]);
     } catch(e) {
       nowPlaying = notPlaying;
       showWarn("Queue Empty");
     }
   }
 
-  function subsonicPrevSong() {
-    
+  function prevSong() {
+    try {
+      if (nowPlaying.id != "" && queue.indexOf(nowPlaying.id) != 0) {
+        play(queue[queue.indexOf(nowPlaying.id) - 1])
+      } else if (queue.indexOf(nowPlaying.id) == 0) {
+        play(queue[queue.length - 1])
+      } else {
+        showWarn("Queue Empty")
+      }
+    } catch (e) {
+      showWarn("Error. Try again.")
+    }
   }
 
   function pause() {
@@ -695,6 +715,16 @@
     // console.log(url)
     stream.src = url;
     stream.play();
+  }
+
+  function play(id: string) {
+    // console.log(id);
+    // console.log(selectedProvider);
+    if (selectedProvider == "subsonic") {
+      subsonicPlay(id);
+    } else {
+      showWarn("Provider Not Supported");
+    }
   }
 
   function seek() {
@@ -851,8 +881,11 @@
         <h2>{playlist.title}</h2>
         <p>{playlist.comment}</p>
       </div>
-      <button class="interactiveIconBackground" on:click={() => makeQueue(playlist)} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {makeQueue(playlist); play(queue[0])}} title="Play Playlist">
         <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
+      </button>
+      <button class="interactiveIconBackground" on:click={() => {makeQueue(playlist); shuffleQueue(); play(queue[0])}} title="Play Playlist">
+        <ion-icon name="shuffle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
     </div>
 
@@ -864,6 +897,9 @@
             <h2 style="margin:-5px">{song.title}</h2>
             <p>{song.artist}</p>
           </div>
+          <button class="interactiveIconBackground" on:click={() => {clearQueue(); play(song.id)}} title="Play Playlist">
+            <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
+          </button>
         </div>
       {/each}
     </div>
@@ -879,6 +915,12 @@
         <h2>{album.title}</h2>
         <p>{album.artist}</p>
       </div>
+      <button class="interactiveIconBackground" on:click={() => {makeQueue(album); play(queue[0])}} title="Play Playlist">
+        <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
+      </button>
+      <button class="interactiveIconBackground" on:click={() => {makeQueue(album); shuffleQueue(); play(queue[0])}} title="Play Playlist">
+        <ion-icon name="shuffle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
+      </button>
     </div>
 
     <div style="padding: 10px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
@@ -889,6 +931,9 @@
             <h2 style="margin:-5px">{song.title}</h2>
             <p>{song.artist}</p>
           </div>
+          <button class="interactiveIconBackground" on:click={() => {clearQueue(); play(song.id)}} title="Play Playlist">
+            <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
+          </button>
         </div>
       {/each}
     </div>
@@ -1001,6 +1046,7 @@
   <!-- Spotify Login Page -->
   {#if selectedProvider == "spotify"}
     <div class="loginContainer">
+      <h1 style="color: #f90"><ion-icon name="warning"></ion-icon> Warning: Spotify Premium Required! <ion-icon name="warning"></ion-icon></h1>
       <form on:submit={connectSpotify} style="display: flex; flex-direction: column;">
         <input style="font-size: {fontSize}px" bind:value={CLIENT_ID} placeholder="Enter your Client ID"/>
         <button class="button" style="font-size: {fontSize}px; background-color: #1ED760" type="submit">Login</button>
@@ -1082,7 +1128,7 @@
 
           <!-- Playback Control -->
           <div>
-            <button on:click={subsonicPrevSong} class="interactiveIconBackground" title="Previous Song">
+            <button on:click={prevSong} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-back" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
             {#if nowPlaying.isPlaying && !nowPlaying.paused}
@@ -1098,7 +1144,7 @@
               <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
             {/if}
-            <button on:click={subsonicNextSong} class="interactiveIconBackground" title="Previous Song">
+            <button on:click={nextSong} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-forward" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
           </div>

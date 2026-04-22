@@ -87,11 +87,13 @@ export async function getNowPlayingSpotify(tokens: any): Promise<Song> {
     id: id, 
     title: title, 
     artist: artist, 
-    album: album, 
-    artworkUrl: artworkUrl, 
-    durationMs: durationMs, 
-    progressMs: progressMs, 
-    isPlaying: isPlaying
+    album: album,
+    albumId: "",
+    durationMs: durationMs,
+    progressMs: progressMs,
+    artworkUrl: artworkUrl,
+    isPlaying: isPlaying,
+    paused: false
   }
 
   return nowPlaying;
