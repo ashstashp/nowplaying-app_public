@@ -131,6 +131,7 @@
 
   function logout() {
     selectProvider("");
+    unload();
     loggedIn = false;
   }
 
@@ -328,10 +329,10 @@
   }
 
   function updateVolBar() {
-    let percent: number = (stream.volume) * 100;
+    let percent: number = stream.volume * 100;
 
     if (!percent) {
-      percent = volume * 100;
+      percent = volume;
     }
 
     // console.log(percent);
@@ -639,13 +640,16 @@
   let duration = 0;
   let progress = 0;
 
-  let volume = 1;
+  let volume = 100.0;
 
 
   setInterval(checkTime, 1);
   setInterval(updateVolBar, 1);
 
   function checkTime() {
+    if (selectedProvider == "" || !loggedIn) {
+      unload();
+    }
     if (nowPlaying.isPlaying) {
       // console.log(nowPlaying.progressMs);
       if (stream.currentTime >= stream.duration) {
@@ -691,6 +695,12 @@
     nowPlaying.paused = true;
   }
 
+  async function unload() {
+    pause();
+    stream.src = "";
+    nowPlaying = await getSongInfo("");
+  }
+
   function resume() {
     stream.play()
     nowPlaying.paused = false;
@@ -732,7 +742,7 @@
   }
 
   function vol() {
-    stream.volume = volume;
+    stream.volume = volume/100;
   }
 
   ///////////////////////////////////////////////////////////////
@@ -1148,6 +1158,10 @@
               <ion-icon name="play-forward" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
           </div>
+          <div style="display:flex; flex-direction: row; align-items: flex-start;">
+            <ion-icon name="{volume > 75? "volume-high" : volume > 25? "volume-medium" : volume > 0? "volume-low" : "volume-off"}" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+            <input type="range" class="volume" min=0 max=100 bind:value={volume} on:input={vol}/>
+          </div>
           
         </div>
         
@@ -1168,10 +1182,6 @@
           <ion-icon name="settings" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
         </button>
       </div>
-    </div>
-    <div style="display:flex; flex-direction: row; align-items: flex-start;">
-      <ion-icon name="{volume > .75? "volume-high" : volume > .25? "volume-medium" : volume > 0? "volume-low" : "volume-off"}" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
-      <input type="range" class="volume" min=0 max=1 bind:value={progress} on:input={vol}/>
     </div>
     {#if displayProgress == true}
     <!-- <div class="progressBar2" style="width: 100%">

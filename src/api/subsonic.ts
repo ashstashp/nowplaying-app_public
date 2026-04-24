@@ -1,6 +1,8 @@
 // src/api/subsonic.ts
 import axios from "axios";
 
+import fallback from "../assets/icons/musical-note-outline.svg";
+
 export interface Song {
   id: string;
   title: string;
@@ -284,7 +286,7 @@ export async function getSongInfo(
         "artist": "N/A",
         "album": "N/A",
         "albumId": "",
-        "artworkUrl": "N/A",
+        "artworkUrl": fallback,
         "durationMs": -1,
         "progressMs": 0,
         "isPlaying": false,
