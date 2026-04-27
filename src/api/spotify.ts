@@ -42,6 +42,10 @@ export async function exchangeCodeForTokens(code: string, CLIENT_ID: string) {
   return tokens;
 }
 
+export async function getRefreshToken() {
+  
+}
+
 export async function getNowPlayingSpotify(tokens: any): Promise<Song> {
   if (!tokens?.access_token) {
     throw new Error("Missing access token");
