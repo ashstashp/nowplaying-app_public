@@ -275,6 +275,10 @@ export class Subsonic implements Player {
     /////// Playback Controls ///////
     /////////////////////////////////
 
+    togglePause() {
+      this.nowPlaying.paused = !this.nowPlaying.paused;
+    }
+
     toggleRepeat() {
       this.repeat = !this.repeat
       console.log(this.repeat);
@@ -315,7 +319,7 @@ export class Subsonic implements Player {
 
     pause() {
       this.stream.pause()
-      this.nowPlaying.paused = true;
+      this.togglePause();
     }
 
     async unload() {

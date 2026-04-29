@@ -195,9 +195,10 @@
       await player.loadAlbums();
       selectedPlaylist = player.playlists[0];
       selectedAlbum = player.albums[0];
-      setInterval(() => {if (player) nowPlaying = player.nowPlaying; repeat = player.repeat}, 100)
+      setInterval(() => {if (player) {nowPlaying = player.nowPlaying; repeat = player.repeat}}, 100)
     } catch(e) {
-      throw new Error(e);
+      logout();
+      showError(e);
     }
   }
 
@@ -1100,11 +1101,11 @@
             <button on:click={() => player.prevSong()} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-back" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
-            {#if nowPlaying? nowPlaying.isPlaying : player.nowPlaying.isPlaying && nowPlaying? !nowPlaying.paused : !player.nowPlaying.paused}
+            {#if (nowPlaying? nowPlaying.isPlaying : player.nowPlaying.isPlaying) && (nowPlaying? !nowPlaying.paused : !player.nowPlaying.paused)}
             <button on:click={() => player.pause()} class="interactiveIconBackground" title="Pause">
               <ion-icon name="pause" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
-            {:else if nowPlaying? nowPlaying.isPlaying : player.nowPlaying.isPlaying && nowPlaying? nowPlaying.paused : player.nowPlaying.paused}
+            {:else if (nowPlaying? nowPlaying.isPlaying : player.nowPlaying.isPlaying) && (nowPlaying? nowPlaying.paused : player.nowPlaying.paused)}
             <button on:click={() => player.resume()} class="interactiveIconBackground" title="Play">
               <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
