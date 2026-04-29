@@ -1,6 +1,8 @@
 <!-- TO DO:
-- Start NowPlaying+ (Allows for playback controls and streaming)
+- Redesign Subsonic and Spotify API intergration
 -->
+
+<!-- Made by Ashstashp -->
 
 <script lang="ts">
 
@@ -10,8 +12,8 @@
 
   import {message} from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
-  import { createSubsonicClient, getSubsonicQueue, getSubsonicStreamUrl, getNowPlayingSubsonic, getPlaylists, getAlbums, getSongInfo } from "../api/subsonic";
-  import { type Playlist, type Album, type Song } from "../api/subsonic";
+  import { Subsonic } from "../api/subsonic";
+  import { type Playlist, type Album, type Song, type Player } from "../api/subsonic";
 
   import { readFile, writeFile } from "../api/storage";
 
@@ -20,11 +22,11 @@
   import spotify_full_green from "../assets/2024-spotify-full-logo/Full_Logo_Green_CMYK.svg";
 
   // Selfhosted (Unofficial Subsonic API) logos
-  import selfHosted_icon from "../assets/selfhosted-logos/selfhosted_logo.png";
+  // import selfHosted_icon from "../assets/selfhosted-logos/selfhosted_logo.png";
   import selfHosted_icon_full from "../assets/selfhosted-logos/selfhosted_logo_full_white.png";
 
   // App Logo
-  import logo from "../assets/app-logos/app_logo.svg";
+  // import logo from "../assets/app-logos/app_logo.svg";
   import logo_full from "../assets/app-logos/app_logo_full.png";
 
   // Settings Logo
@@ -33,26 +35,10 @@
   import { getSpotifyLoginUrl, exchangeCodeForTokens, getNowPlayingSpotify} from "../api/spotify";
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
-    import { exists } from "@tauri-apps/plugin-fs";
-    import { app } from "@tauri-apps/api";
-    import { audioDir } from "@tauri-apps/api/path";
 
   ////////////////////////////////////////////////////////////////
   ///////////////////////// Helpful Stuff ////////////////////////
   ////////////////////////////////////////////////////////////////
-
-  const notPlaying: Song = {
-        "id": "",
-        "title": "Not Playing",
-        "artist": "N/A",
-        "album": "N/A",
-        "albumId": "",
-        "artworkUrl": "N/A",
-        "durationMs": 1,
-        "progressMs": 0,
-        "isPlaying": false,
-        "paused": true
-      }
 
   const defaultTimeoutTime = 5000;
 
@@ -131,35 +117,12 @@
 
   function logout() {
     selectProvider("");
-    unload();
+    player.unload();
     loggedIn = false;
   }
 
-  // Makes the stuff needed
-  let subsonicUrl = "";
-  let username = "";
-  let password = "";
-  let version = "1.16.1";
-  let imageUrl = "N/A";
-
-  /////////////////////////////////////////////////////////////////
-  ///////////////////////// Subsonic Stuff ////////////////////////
-  /////////////////////////////////////////////////////////////////
-  let client = null;
-
-  let playlists: Array<Playlist>;
-  
-  let albums: Array<Album>;
-
-  let nowPlaying: Song = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
-
-  let progressMs = 0;
-
-  function resetTimer() {
-    progressMs = 0;
-  }
-
-  async function refreshSubsonic() {
+  async function login() {
+    if (selectedProvider == "subsonic") {
       if (autoLogin) {
         writeFile("provider", "subsonic", "client");
       } 
@@ -168,45 +131,59 @@
         version = "1.16.1";
       }
       try {
-        let tempPlaying = await getNowPlayingSubsonic(client, subsonicUrl, username, password, version);
-        if (!nowPlaying || tempPlaying.id !== nowPlaying.id) {
-          resetTimer();
-          nowPlaying = tempPlaying;
-        }
-        if (nowPlaying) {
-          imageUrl = nowPlaying.artworkUrl
-          if (nowPlaying.isPlaying) {
-            progressMs += 2000;
-            nowPlaying.progressMs = progressMs;
-          }
-          // console.log(getSubsonicQueue(subsonicUrl, username, password, version));
-          // console.log(getSubsonicStreamUrl(subsonicUrl, nowPlaying.id, username, password, version));
-          // console.log(playlists);
-        }
-        else {
-          nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
-          logout();
-          showWarn("Login Failed")
-        }
-      } catch(err) {
-        nowPlaying = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false};
-        logout();
-        console.log(err)
-        showWarn("Login Failed");
+        connectSubsonic();
+      } catch(e) {
+        console.log(e);
+        showWarn("Failed to login");
       }
+      console.log("User: "+ username);
+      console.log()
+    } else {
+      showWarn("Provider Not Supported");
+    }
   }
 
+  // Makes the stuff needed
+  let subsonicUrl = "";
+  let username = "";
+  let password = "";
+  let version = "1.16.1";
+  let imageUrl = "N/A";
+  let player: Player;
+
+  /////////////////////////////////////////////////////////////////
+  ///////////////////////// Subsonic Stuff ////////////////////////
+  /////////////////////////////////////////////////////////////////
+
+  // async function refreshSubsonic() {
+  //     if (autoLogin) {
+  //       writeFile("provider", "subsonic", "client");
+  //     } 
+
+  //     if (version.trim() == "") {
+  //       version = "1.16.1";
+  //     }
+  //     try {
+  //       player = new Subsonic(username, password, subsonicUrl, version);
+  //     } catch(err) {
+  //       logout();
+  //       console.log(err)
+  //       showWarn("Login Failed");
+  //     }
+  // }
+
   async function connectSubsonic() {
-    loggedIn = true;
-    client = createSubsonicClient(subsonicUrl);
-    playlists = await getPlaylists(client, subsonicUrl, username, password, version)
-    albums = await getAlbums(client, subsonicUrl, username, password, version)
-    selectedPlaylist = playlists[0];
-    selectedAlbum = albums[0];
-    // console.log(playlists);
-    //refreshSubsonic();
+    try {
+      loggedIn = true;
+      player = new Subsonic(username, password, subsonicUrl, version);
+      await player.loadPlaylists();
+      await player.loadAlbums();
+      selectedPlaylist = player.playlists[0];
+      selectedAlbum = player.albums[0];
+    } catch(e) {
+      throw new Error(e);
+    }
   }
-  // const audio = new Audio(/*getSubsonicStreamUrl(subsonicUrl, "3DPgYhGC0p5QESTdDnNU5r", username, password, version)*/"http://192.168.1.97:4533/rest/stream?id=3DPgYhGC0p5QESTdDnNU5r&u=ashstashp&p=EggS@l3d-1945&v=1.16.1&c=NowPlayingApp");
 
 
   ////////////////////////////////////////////////////////////////
@@ -260,8 +237,8 @@
     let error = null;
     try {
       const result = await spotifyNowPlaying();
-      nowPlaying = result;
-      imageUrl = nowPlaying?.artworkUrl
+      player.nowPlaying = result;
+      imageUrl = player.nowPlaying?.artworkUrl
       error = null;
     } catch (err) {
       // Errors come in object data types
@@ -275,7 +252,7 @@
         // Checks if error is not a Missing access token error
         if (!error.message.toLowerCase().includes("missing access token")){
           // "Restarts" app
-          nowPlaying = null;
+          player.nowPlaying = null;
           logout()
 
           // Exits loop
@@ -294,7 +271,7 @@
         }
         errorCount++;
       }
-      nowPlaying = null;
+      player.nowPlaying = null;
       loggedIn = false;
       selectProvider("");
       if (errorCount >= errorLimit) {
@@ -317,7 +294,7 @@
   let secondaryColorStr = "rgba(0, 0, 0, 0.5)";
 
   function updateProgressBar() {
-    let percent: number = (stream.currentTime / stream.duration) * 100;
+    let percent: number = (player.nowPlaying.progressMs / player.nowPlaying.durationMs) * 100;
 
     if (!percent) {
       percent = 0;
@@ -329,15 +306,17 @@
   }
 
   function updateVolBar() {
-    let percent: number = stream.volume * 100;
+    if (loggedIn) {
+      let percent: number = player.stream.volume * 100;
 
-    if (!percent) {
-      percent = volume;
+      if (!percent) {
+        percent = 100;
+      }
+
+      // console.log(percent);
+
+      document.documentElement.style.setProperty("--vol-ptc", percent + "%")
     }
-
-    // console.log(percent);
-
-    document.documentElement.style.setProperty("--vol-ptc", percent + "%")
   }
 
   function updateColors() {
@@ -577,27 +556,29 @@
   let selectedSong: Song;
   let selectedArtist: string;
 
-  function makeQueue(list) {
-    for (const i in list.songs) {
-      const song = list.songs[i]
-//      console.log(song.id);
-      queue.push(song.id);
-    }
-    // console.log(queue);
-  }
+//   function makeQueue(list) {
+//     for (const i in list.songs) {
+//       const song = list.songs[i]
+// //      console.log(song.id);
+//       queue.push(song.id);
+//     }
+//     // console.log(queue);
+//   }
 
-  function clearQueue() {
-    queue = [];
-  }
+//   function clearQueue() {
+//     queue = [];
+//   }
 
-  function shuffleQueue() {
-    const shuffled = queue.sort(() => Math.random() - 0.5);
-    queue = shuffled;
-    // console.log(queue);
-  }
+//   function shuffleQueue() {
+//     const shuffled = queue.sort(() => Math.random() - 0.5);
+//     queue = shuffled;
+//     // console.log(queue);
+//   }
 
   function toggleLibrary() {
     showLibrary = !showLibrary;
+    console.log(player.playlists);
+    console.log(player.albums);
   };
 
   function togglePlaylist() {
@@ -636,131 +617,42 @@
   //////////////////////////// Audio ///////////////////////////
   //////////////////////////////////////////////////////////////
 
-  let stream = new Audio();
-  let duration = 0;
-  let progress = 0;
-
-  let volume = 100.0;
-
-
-  setInterval(checkTime, 1);
-  setInterval(updateVolBar, 1);
-
   function checkTime() {
     if (selectedProvider == "" || !loggedIn) {
-      unload();
-    }
-    if (nowPlaying.isPlaying) {
-      // console.log(nowPlaying.progressMs);
-      if (stream.currentTime >= stream.duration) {
-        nextSong();
+      try {
+        player.unload();
+      } catch {
+
       }
     }
-    updateProgressBar();
-  }
-
-  function nextSong() {
-    nowPlaying.progressMs = nowPlaying.durationMs;
-    stream.currentTime = 0;
-    stream.pause()
-    let index = 0;
-
-    try{
-
-      if (nowPlaying.id != "") index = queue.indexOf(nowPlaying.id) + 1;
-      console.log(queue[index]);
-      play(queue[index]);
-    } catch(e) {
-      nowPlaying = notPlaying;
-      showWarn("Queue Empty");
-    }
-  }
-
-  function prevSong() {
-    try {
-      if (nowPlaying.id != "" && queue.indexOf(nowPlaying.id) != 0) {
-        play(queue[queue.indexOf(nowPlaying.id) - 1])
-      } else if (queue.indexOf(nowPlaying.id) == 0) {
-        play(queue[queue.length - 1])
-      } else {
-        showWarn("Queue Empty")
+    else if (player.nowPlaying.isPlaying) {
+      // console.log(player.nowPlaying.progressMs);
+      if (player.stream.currentTime >= player.stream.duration) {
+        player.nextSong();
       }
-    } catch (e) {
-      showWarn("Error. Try again.")
+      updateProgressBar();
     }
   }
 
-  function pause() {
-    stream.pause()
-    nowPlaying.paused = true;
-  }
-
-  async function unload() {
-    pause();
-    stream.src = "";
-    nowPlaying = await getSongInfo("");
-  }
-
-  function resume() {
-    stream.play()
-    nowPlaying.paused = false;
-  }
-
-  async function subsonicPlay(id: string) {
-    stream.pause()
-    let url = `${subsonicUrl}/rest/stream?id=${id}&u=${username}&p=${password}&v=${version}&c=NowPlayingApp`;
-    nowPlaying = await getSongInfo(client, subsonicUrl, username, password, version, id);
-    nowPlaying.paused = false;
-    nowPlaying.isPlaying = true;
-
-    stream.addEventListener("loadedmetadata", () => {
-      duration = stream.duration;
-    });
-
-    stream.addEventListener("timeupdate", () => {
-      progress = stream.currentTime;
-    });
-
-    // console.log(nowPlaying);
-    // console.log(url)
-    stream.src = url;
-    stream.play();
-  }
-
-  function play(id: string) {
-    // console.log(id);
-    // console.log(selectedProvider);
-    if (selectedProvider == "subsonic") {
-      subsonicPlay(id);
-    } else {
-      showWarn("Provider Not Supported");
-    }
-  }
-
-  function seek() {
-    stream.currentTime = progress;
-  }
-
-  function vol() {
-    stream.volume = volume/100;
-  }
+  // setInterval(checkTime, 1);
+  // setInterval(updateVolBar, 1);
 
   ///////////////////////////////////////////////////////////////
   ///////////////////////// Progress Bar ////////////////////////
   ///////////////////////////////////////////////////////////////
 
   // refresh stuff
-  async function refresh() {
-    if (selectedProvider == "subsonic" && loggedIn) {
-      //refreshSubsonic();
-    } else if (selectedProvider == "spotify" && loggedIn) {
-      refreshSpotify();
-    }
-  }
+  // async function refresh() {
+  //   if (selectedProvider == "subsonic" && loggedIn) {
+  //     refreshSubsonic();
+  //   } else if (selectedProvider == "spotify" && loggedIn) {
+  //     refreshSpotify();
+  //   }
+  // }
 
-  // Refresh content
-  setInterval(refresh, 2000);
-  refresh();
+  // // Refresh content
+  // setInterval(refresh, 2000);
+  // refresh();
 </script>
 
 <main class="container">
@@ -833,7 +725,7 @@
       {#if selectedProvider == "spotify"}
         <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px; width: {artSize}px; height: auto;"/>
       {/if}
-      {#if nowPlaying.isPlaying == true}
+      {#if player.nowPlaying.isPlaying == true}
       <img class="albumArt" style="width:{artSize}px; height:{artSize}px; border-radius:8px;" src={imageUrl} alt="Preview"/>
       {:else}
       <ion-icon name="musical-note-outline" style="font-size:{artSize}px; color:{fontColorStr}"></ion-icon>
@@ -891,10 +783,10 @@
         <h2>{playlist.title}</h2>
         <p>{playlist.comment}</p>
       </div>
-      <button class="interactiveIconBackground" on:click={() => {makeQueue(playlist); play(queue[0])}} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(playlist); player.play(queue[0])}} title="Play Playlist">
         <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
-      <button class="interactiveIconBackground" on:click={() => {makeQueue(playlist); shuffleQueue(); play(queue[0])}} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(playlist); player.shuffleQueue(); player.play(queue[0])}} title="Play Playlist">
         <ion-icon name="shuffle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
     </div>
@@ -907,7 +799,7 @@
             <h2 style="margin:-5px">{song.title}</h2>
             <p>{song.artist}</p>
           </div>
-          <button class="interactiveIconBackground" on:click={() => {clearQueue(); play(song.id)}} title="Play Playlist">
+          <button class="interactiveIconBackground" on:click={() => {player.clearQueue(); player.play(song.id)}} title="Play Playlist">
             <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
           </button>
         </div>
@@ -925,10 +817,10 @@
         <h2>{album.title}</h2>
         <p>{album.artist}</p>
       </div>
-      <button class="interactiveIconBackground" on:click={() => {makeQueue(album); play(queue[0])}} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(album); player.play(queue[0])}} title="Play Playlist">
         <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
-      <button class="interactiveIconBackground" on:click={() => {makeQueue(album); shuffleQueue(); play(queue[0])}} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(album); player.shuffleQueue(); player.play(queue[0])}} title="Play Playlist">
         <ion-icon name="shuffle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
     </div>
@@ -941,7 +833,7 @@
             <h2 style="margin:-5px">{song.title}</h2>
             <p>{song.artist}</p>
           </div>
-          <button class="interactiveIconBackground" on:click={() => {clearQueue(); play(song.id)}} title="Play Playlist">
+          <button class="interactiveIconBackground" on:click={() => {player.clearQueue(); player.play(song.id)}} title="Play Playlist">
             <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
           </button>
         </div>
@@ -966,7 +858,7 @@
       <h2>Spotify is currently not supported</h2>
     {:else}
       <h2>Playlists:</h2>
-        {#each playlists as playlist}
+        {#each player.playlists as playlist}
           <button style="background: transparent; border-color:rgba(0, 0, 0, 0)" on:click={() => {setSelectedPlaylist(playlist); togglePlaylist()}}>
             <div style="display:flex; flex-direction: row; padding: 20px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
               <img class="albumCover" style="height:{artSize*(3/4)}px; width:{artSize*(3/4)}px; margin-right: 10px;" src={playlist.artworkUrl} alt="Playlist Artwork"/>
@@ -978,7 +870,7 @@
           </button>
         {/each}
       <h2>Albums</h2>
-        {#each albums as album}
+        {#each player.albums as album}
           <button style="background: transparent; border-color:rgba(0, 0, 0, 0)" on:click={() => {setSelectedAlbum(album); toggleAlbum()}}>
             <div style="display:flex; flex-direction: row; padding: 20px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
               <img class="albumCover" style="height:{artSize*(3/4)}px; width:{artSize*(3/4)}px; margin-right: 10px;" src={album.artworkUrl} alt="Playlist Artwork"/>
@@ -1057,7 +949,7 @@
   {#if selectedProvider == "spotify"}
     <div class="loginContainer">
       <h1 style="color: #f90"><ion-icon name="warning"></ion-icon> Warning: Spotify Premium Required! <ion-icon name="warning"></ion-icon></h1>
-      <form on:submit={connectSpotify} style="display: flex; flex-direction: column;">
+      <form on:submit={login} style="display: flex; flex-direction: column;">
         <input style="font-size: {fontSize}px" bind:value={CLIENT_ID} placeholder="Enter your Client ID"/>
         <button class="button" style="font-size: {fontSize}px; background-color: #1ED760" type="submit">Login</button>
       </form>
@@ -1074,7 +966,7 @@
   <!-- Subsonic Login Page -->
   {:else if selectedProvider == "subsonic"}
     <div class="loginContainer" >
-      <form on:submit={connectSubsonic} style="display: flex; flex-direction: column;">
+      <form on:submit={login} style="display: flex; flex-direction: column;">
         <input style="font-size: {fontSize}px" bind:value={subsonicUrl} placeholder="Enter your Server URL"/>
         <input style="font-size: {fontSize}px" bind:value={version} placeholder="Enter your Server Version (Default is 1.16.1)"/>
         <input style="font-size: {fontSize}px" bind:value={username} placeholder="Enter your Username"/>
@@ -1125,42 +1017,42 @@
           {#if selectedProvider == "spotify"}
             <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px;"/>
           {/if}
-          {#if nowPlaying.isPlaying == true}
-          <img class="albumCover" style="height:{artSize}px; width:{artSize}px;" src={nowPlaying.artworkUrl? nowPlaying.artworkUrl : "N/A"} alt={`Cover art for ${nowPlaying.title} by ${nowPlaying.artist}`} />
+          {#if player.nowPlaying.isPlaying == true}
+          <img class="albumCover" style="height:{artSize}px; width:{artSize}px;" src={player.nowPlaying.artworkUrl? player.nowPlaying.artworkUrl : "N/A"} alt={`Cover art for ${player.nowPlaying.title} by ${player.nowPlaying.artist}`} />
           {:else}
           <ion-icon name="musical-note-outline" style="font-size:{artSize}px; color:{fontColorStr}"></ion-icon>
           {/if}
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <h1 style="font-size: {fontSize + 16}px;">{nowPlaying.title}</h1>
-          <h2 style="font-size: {fontSize + 8}px;">{nowPlaying.artist}</h2>
+          <h1 style="font-size: {fontSize + 16}px;">{player.nowPlaying.title}</h1>
+          <h2 style="font-size: {fontSize + 8}px;">{player.nowPlaying.artist}</h2>
 
 
           <!-- Playback Control -->
           <div>
-            <button on:click={prevSong} class="interactiveIconBackground" title="Previous Song">
+            <button on:click={() => player.prevSong()} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-back" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
-            {#if nowPlaying.isPlaying && !nowPlaying.paused}
-            <button on:click={pause} class="interactiveIconBackground" title="Pause">
+            {#if player.nowPlaying.isPlaying && !player.nowPlaying.paused}
+            <button on:click={() => player.pause()} class="interactiveIconBackground" title="Pause">
               <ion-icon name="pause" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
-            {:else if nowPlaying.paused}
-            <button on:click={resume} class="interactiveIconBackground" title="Play">
+            {:else if player.nowPlaying.paused}
+            <button on:click={() => player.resume()} class="interactiveIconBackground" title="Play">
               <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
             {:else}
-            <button on:click={() => {subsonicPlay("NTt3W8F4HVUawr5QsFLN8a")}} class="interactiveIconBackground" title="Play">
+            <button on:click={() => {player.play("NTt3W8F4HVUawr5QsFLN8a")}} class="interactiveIconBackground" title="Play">
               <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
             {/if}
-            <button on:click={nextSong} class="interactiveIconBackground" title="Previous Song">
+            <button on:click={() => player.nextSong()} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-forward" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
           </div>
           <div style="display:flex; flex-direction: row; align-items: flex-start;">
-            <ion-icon name="{volume > 75? "volume-high" : volume > 25? "volume-medium" : volume > 0? "volume-low" : "volume-off"}" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
-            <input type="range" class="volume" min=0 max=100 bind:value={volume} on:input={vol}/>
+            <ion-icon name="{player.volume > 75? "volume-high" : player.volume > 25? "volume-medium" : player.volume > 0? "volume-low" : "volume-off"}" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+            <input type="range" class="volume" min=0 max=100 bind:value={player.volume} on:input={player.vol}/>
           </div>
           
         </div>
@@ -1190,7 +1082,7 @@
     </div> -->
     <div style="display:flex; flex-direction: row">
       <ion-icon name="time" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
-      <input type="range" class="duration" min=0 max={duration} bind:value={progress} on:input={seek}/>
+      <input type="range" class="duration" min=0 max={player.nowPlaying.durationMs} bind:value={player.nowPlaying.progressMs} on:input={() => player.seek()}/>
     </div>
     {/if}
     
@@ -1436,3 +1328,5 @@ p {
 }
 
 </style>
+
+<!-- Made by Ashstashp -->
