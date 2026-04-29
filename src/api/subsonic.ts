@@ -12,6 +12,7 @@ export class Subsonic implements Player {
     version: string = "1.16.1";
     client = null;
     volume = 100;
+    repeat: boolean = false;
 
     // Now Playing & Not Playing
     notPlaying: Song = {
@@ -29,7 +30,7 @@ export class Subsonic implements Player {
     nowPlaying: Song = this.notPlaying;
 
     // Queue and Library Info
-    queue = [];
+    queue: Array<string> = [];
     playlists: Array<Playlist> = [];
     albums: Array<Album> = [];
 
@@ -199,8 +200,8 @@ export class Subsonic implements Player {
         
           const response = await res.data["subsonic-response"];
 
-          console.log("SONG-INFO RESPONSE: ");
-          console.log(response);
+          // console.log("SONG-INFO RESPONSE: ");
+          // console.log(response);
 
           if (!response || response.status != "ok") {
             throw new Error("Subsonic Fetch Failed");
@@ -230,7 +231,7 @@ export class Subsonic implements Player {
             "artist": "N/A",
             "album": "N/A",
             "albumId": "",
-            "artworkUrl": fallback,
+            "artworkUrl": "N/A",
             "durationMs": -1,
             "progressMs": 0,
             "isPlaying": false,
@@ -247,9 +248,6 @@ export class Subsonic implements Player {
 
     stream = new Audio();
     duration = 0;
-    progress = 0;
-
-    volume = 100.0;
 
 
     //////////////////////////////////
@@ -258,7 +256,8 @@ export class Subsonic implements Player {
 
     makeQueue(list: Playlist | Album) {
       for (const song in list.songs) {
-        this.queue.push(song.id);
+        // console.log(list.songs[song].title);
+        this.queue = [...this.queue, list.songs[song].id];
       }
     }
 
@@ -276,6 +275,11 @@ export class Subsonic implements Player {
     /////// Playback Controls ///////
     /////////////////////////////////
 
+    toggleRepeat() {
+      this.repeat = !this.repeat
+      console.log(this.repeat);
+    }
+
     nextSong() {
       this.nowPlaying.progressMs = this.nowPlaying.durationMs;
       this.stream.currentTime = 0;
@@ -283,9 +287,12 @@ export class Subsonic implements Player {
       let index = 0;
 
       try{
-
         if (this.nowPlaying.id != "") index = this.queue.indexOf(this.nowPlaying.id) + 1;
-        console.log(this.queue[index]);
+        console.log(index);
+        console.log(this.queue.length)
+        console.log(index >= this.queue.length);
+        if (this.repeat && index >= this.queue.length || index == 0 || !index) index = 0;
+        // console.log(this.queue[index]);
         this.play(this.queue[index]);
       } catch(e) {
         this.nowPlaying = this.notPlaying;
@@ -323,32 +330,42 @@ export class Subsonic implements Player {
     }
 
     async play(id: string) {
-      this.stream.pause()
-      let url = `${this.url}/rest/stream?id=${id}&u=${this.user}&p=${this.pass}&v=${this.version}&c=NowPlayingApp`;
-      this.nowPlaying = await this.getSongInfo(id);
-      this.nowPlaying.paused = false;
-      this.nowPlaying.isPlaying = true;
+      try {
+        this.stream.pause()
+        let url = `${this.url}/rest/stream?id=${id}&u=${this.user}&p=${this.pass}&v=${this.version}&c=NowPlayingApp`;
+        this.nowPlaying = await this.getSongInfo(id);
+        console.log(this.nowPlaying);
+        this.nowPlaying.paused = false;
+        this.nowPlaying.isPlaying = true;
 
-      this.stream.addEventListener("loadedmetadata", () => {
-        this.duration = this.stream.duration;
-      });
+        this.stream.addEventListener("loadedmetadata", () => {
+          this.duration = this.stream.duration;
+        });
 
-      this.stream.addEventListener("timeupdate", () => {
-        this.progress = this.stream.currentTime;
-      });
+        this.stream.addEventListener("timeupdate", () => {
+          this.nowPlaying.progressMs = this.stream.currentTime * 1000;
+        });
 
-      // console.log(nowPlaying);
-      // console.log(url)
-      this.stream.src = url;
-      this.stream.play();
+        // console.log(nowPlaying);
+        // console.log(url)
+        this.stream.src = url;
+        this.stream.play();
+      } catch(e) {
+        console.log(e);
+        this.nowPlaying = this.notPlaying;
+      }
     }
 
-    seek() {
-      this.stream.currentTime = this.progress;
+    seek(time: number) {
+      this.nowPlaying.progressMs = time;
+      this.stream.currentTime = this.nowPlaying.progressMs / 1000;
     }
 
-    vol() {
+    setVolume(vol: number) {
+      this.volume = vol;
+      console.log(this.volume);
       this.stream.volume = this.volume/100;
+      console.log(this.stream.volume);
     }
 }
 
@@ -357,6 +374,8 @@ export interface Player {
   albums: Array<Album>;
   playlists: Array<Playlist>;
   volume: number;
+  queue: Array<string>;
+  repeat: boolean;
   loadPlaylists(): void;
   loadAlbums(): void;
   makeQueue(list: Playlist | Album): void;
@@ -368,8 +387,9 @@ export interface Player {
   prevSong(): void;
   nextSong(): void;
   unload(): void;
-  seek(): void;
-  vol() : void;
+  seek(time: number): void;
+  setVolume(volume: number): void;
+  toggleRepeat() : void;
   stream?: ReturnType<typeof Audio>
 }
 

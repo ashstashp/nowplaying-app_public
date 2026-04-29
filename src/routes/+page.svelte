@@ -58,6 +58,21 @@
     ]);
   }
 
+  let nowPlaying: Song = {
+    "id": "",
+    "title": "Not Playing",
+    "artist": "N/A",
+    "album": "N/A",
+    "albumId": "",
+    "artworkUrl": "N/A",
+    "durationMs": -1,
+    "progressMs": 0,
+    "isPlaying": false,
+    "paused": true
+  };
+
+  let repeat = false;
+
   ///////////////////////////////////////////////////////////////
   ///////////////////////// Keyring Info ////////////////////////
   ///////////////////////////////////////////////////////////////
@@ -180,6 +195,7 @@
       await player.loadAlbums();
       selectedPlaylist = player.playlists[0];
       selectedAlbum = player.albums[0];
+      setInterval(() => {if (player) nowPlaying = player.nowPlaying; repeat = player.repeat}, 100)
     } catch(e) {
       throw new Error(e);
     }
@@ -301,6 +317,8 @@
     }
 
     // console.log(percent);
+    // console.log(progress);
+    // console.log(player.stream.currentTime);
 
     document.documentElement.style.setProperty("--dur-ptc", percent + "%")
   }
@@ -373,6 +391,8 @@
   let showLogoutButton = true;
   let autoLogin = false;
   let displayProgress = true;
+  let showAlbumArt = true;
+  let showAttribution = false;
   const appVersion = "v1.0.0-pre_release";
   let currentPlatform = "unknown"; 
   let acceptedTos = false;
@@ -408,6 +428,10 @@
     displayProgress = !displayProgress;
   }
 
+  function toggleShowAttribution() {
+    showAttribution = !showAttribution;
+  }
+
   // Toggle AutoLogin feature
   function toggleAutoLogin() {
     autoLogin = !autoLogin;
@@ -441,6 +465,9 @@
     fontSize = 16;
     artSize = 200;
     autoLogin = false;
+    displayProgress = true;
+    showAlbumArt = true;
+    showAttribution = false;
     updateSettingsFiles();
   }
 
@@ -452,6 +479,9 @@
   function discardSettings() {
     loadSettingsFiles();
     toggleSettings();
+  }
+  function toggleShowAlbumArt() {
+    showAlbumArt = !showAlbumArt
   }
 
   async function runAutoLogin() {
@@ -491,6 +521,8 @@
     await writeFile("showLogoutButton", showLogoutButton.toString(), "settings");
     await writeFile("autoLogin", autoLogin.toString(), "settings");
     await writeFile("displayProgress", displayProgress.toString(), "settings");
+    await writeFile("showAlbumArt", showAlbumArt.toString(), "settings");
+    await writeFile("showAttribution", showAttribution.toString(), "settings");
   }
 
   async function loadSettingsFiles() {
@@ -516,6 +548,20 @@
       displayProgress = true;
     } else {
       displayProgress = false;
+    }
+
+    const whatShowAlbumArt = await readFile("showAlbumArt", "settings")
+    if (whatShowAlbumArt == "true" || whatShowAlbumArt == "truee") {
+      showAlbumArt = true;
+    } else {
+      showAlbumArt = false;
+    }
+
+    const whatShowAttribution = await readFile("showAttribution", "settings")
+    if (whatShowAttribution == "true" || whatShowAttribution == "truee") {
+      showAttribution = true;
+    } else {
+      showAttribution = false;
     }
 
     const whatAcceptedTos = await readFile("tos", "legal")
@@ -627,15 +673,21 @@
     }
     else if (player.nowPlaying.isPlaying) {
       // console.log(player.nowPlaying.progressMs);
+      progress = player.nowPlaying.progressMs;
       if (player.stream.currentTime >= player.stream.duration) {
         player.nextSong();
+        progress = 0;
       }
       updateProgressBar();
     }
+    progress += 1;
   }
 
-  // setInterval(checkTime, 1);
-  // setInterval(updateVolBar, 1);
+  let volume = 100;
+  let progress = 0;
+
+  setInterval(checkTime, 1);
+  setInterval(updateVolBar, 1);
 
   ///////////////////////////////////////////////////////////////
   ///////////////////////// Progress Bar ////////////////////////
@@ -707,8 +759,9 @@
       </form>
     </div>
 
+    <h1 style="font-size: {fontSize + 16}px">Album Art:</h1>
+    {#if showAlbumArt == true}
     <!-- Album Art Size -->
-    <h1 style="font-size: {fontSize + 16}px">Album Art Size:</h1>
     <div style="display:flex; flex-direction: row; align-items: center; justify-content: center;">
       <button class="interactiveIconBackground" on:click={decArtSize} title="decrease-art-size">
         <ion-icon style="color:{fontColorStr}; font-size:{fontSize+14}px" name="remove-circle"></ion-icon>
@@ -721,16 +774,21 @@
 
     <!-- Album Art Preview -->
     <div style="display:flex; flex-direction: column; align-items: center; justify-content: center;">
-      <h1 style="font-size: {fontSize + 16}px">Album Art Preview:</h1>
+      <h2 style="font-size: {fontSize + 8}px">Preview:</h2>
       {#if selectedProvider == "spotify"}
         <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px; width: {artSize}px; height: auto;"/>
       {/if}
-      {#if player.nowPlaying.isPlaying == true}
-      <img class="albumArt" style="width:{artSize}px; height:{artSize}px; border-radius:8px;" src={imageUrl} alt="Preview"/>
+      {#if player && nowPlaying.isPlaying == true}
+        <img class="albumArt" style="width:{artSize}px; height:{artSize}px; border-radius:8px;" src={nowPlaying? nowPlaying.artworkUrl : player.nowPlaying.artworkUrl} alt="Preview"/>
       {:else}
-      <ion-icon name="musical-note-outline" style="font-size:{artSize}px; color:{fontColorStr}"></ion-icon>
+        <ion-icon name="musical-note-outline" style="font-size:{artSize}px; color:{fontColorStr}"></ion-icon>
       {/if}
     </div>
+    {/if}
+    <button class="button" style="font-size: {fontSize}px; display:flex; flex-direction: row; justify-content: space-between;" on:click={toggleShowAlbumArt}>
+      <p style="font-size: {fontSize}px; test-align:left;">Show Album Art:</p>
+      <p style="font-size: {fontSize}px; color: {showAlbumArt? "#0f0" : "#f00"};">{showAlbumArt}</p>
+    </button>
 
     <!-- Toggle Buttons -->
     <div style="display:flex; flex-direction: column;">
@@ -750,6 +808,10 @@
       <button class="button" style="font-size: {fontSize}px; display:flex; flex-direction: row; justify-content: space-between;" on:click={toggleDisplayProgress}>
         <p style="font-size: {fontSize}px; test-align:left;">Display Progress Bar:</p>
         <p style="font-size: {fontSize}px; color: {displayProgress? "#0f0" : "#f00"};">{displayProgress}</p>
+      </button>
+      <button class="button" style="font-size: {fontSize}px; display:flex; flex-direction: row; justify-content: space-between;" on:click={toggleShowAttribution}>
+        <p style="font-size: {fontSize}px; test-align:left;">Show Attribution (app logo):</p>
+        <p style="font-size: {fontSize}px; color: {showAttribution? "#0f0" : "#f00"};">{showAttribution}</p>
       </button>
     </div>
 
@@ -783,10 +845,10 @@
         <h2>{playlist.title}</h2>
         <p>{playlist.comment}</p>
       </div>
-      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(playlist); player.play(queue[0])}} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(playlist); player.play(player.queue[0])}} title="Play Playlist">
         <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
-      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(playlist); player.shuffleQueue(); player.play(queue[0])}} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(playlist); player.shuffleQueue(); player.play(player.queue[0])}} title="Play Playlist">
         <ion-icon name="shuffle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
     </div>
@@ -817,10 +879,10 @@
         <h2>{album.title}</h2>
         <p>{album.artist}</p>
       </div>
-      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(album); player.play(queue[0])}} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(album); player.play(player.queue[0])}} title="Play Playlist">
         <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
-      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(album); player.shuffleQueue(); player.play(queue[0])}} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(album); player.shuffleQueue(); player.play(player.queue[0])}} title="Play Playlist">
         <ion-icon name="shuffle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
     </div>
@@ -1010,6 +1072,11 @@
     {@render playlist(selectedPlaylist)}
   {:else}
   <div class="backgroundContainer" style="display: flex; flex-direction: column; justify-content:center;">
+    {#if showAttribution == true}
+      <div style="display:flex; flex-direction:row; align-items: flex-start; justify-content: flex-start;">
+        <img style="width:auto; height:{fontSize + 40}px" src={logo_full} alt="NowPlayingApp Logo"/>
+      </div>
+    {/if}
     <div style="display: flex; flex-direction: row; justify-content:space-between;">
       <!-- Main Content -->
       <div style="display:flex; flex-direction: row;">
@@ -1017,15 +1084,15 @@
           {#if selectedProvider == "spotify"}
             <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px;"/>
           {/if}
-          {#if player.nowPlaying.isPlaying == true}
-          <img class="albumCover" style="height:{artSize}px; width:{artSize}px;" src={player.nowPlaying.artworkUrl? player.nowPlaying.artworkUrl : "N/A"} alt={`Cover art for ${player.nowPlaying.title} by ${player.nowPlaying.artist}`} />
-          {:else}
+          {#if showAlbumArt == true && (nowPlaying? nowPlaying.isPlaying == true : player.nowPlaying.isPlaying)}
+          <img class="albumCover" style="height:{artSize}px; width:{artSize}px;" src={(nowPlaying? (nowPlaying.artworkUrl? nowPlaying.artworkUrl : "N/A"): (player.nowPlaying.artworkUrl? player.nowPlaying.artworkUrl : "N/A"))} alt={`Cover art for ${(nowPlaying? nowPlaying.title : player.nowPlaying.title)} by ${nowPlaying? nowPlaying.artist : player.nowPlaying.artist}`} />
+          {:else if showAlbumArt == true}
           <ion-icon name="musical-note-outline" style="font-size:{artSize}px; color:{fontColorStr}"></ion-icon>
           {/if}
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <h1 style="font-size: {fontSize + 16}px;">{player.nowPlaying.title}</h1>
-          <h2 style="font-size: {fontSize + 8}px;">{player.nowPlaying.artist}</h2>
+          <h1 style="font-size: {fontSize + 16}px;">{nowPlaying? nowPlaying.title : player.nowPlaying.title}</h1>
+          <h2 style="font-size: {fontSize + 8}px;">{nowPlaying? nowPlaying.artist : player.nowPlaying.artist}</h2>
 
 
           <!-- Playback Control -->
@@ -1033,11 +1100,11 @@
             <button on:click={() => player.prevSong()} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-back" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
-            {#if player.nowPlaying.isPlaying && !player.nowPlaying.paused}
+            {#if nowPlaying? nowPlaying.isPlaying : player.nowPlaying.isPlaying && nowPlaying? !nowPlaying.paused : !player.nowPlaying.paused}
             <button on:click={() => player.pause()} class="interactiveIconBackground" title="Pause">
               <ion-icon name="pause" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
-            {:else if player.nowPlaying.paused}
+            {:else if nowPlaying? nowPlaying.isPlaying : player.nowPlaying.isPlaying && nowPlaying? nowPlaying.paused : player.nowPlaying.paused}
             <button on:click={() => player.resume()} class="interactiveIconBackground" title="Play">
               <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
@@ -1046,14 +1113,22 @@
               <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
             {/if}
-            <button on:click={() => player.nextSong()} class="interactiveIconBackground" title="Previous Song">
+            <button on:click={() => {player.nextSong(); progress = 0;}} class="interactiveIconBackground" title="Previous Song">
               <ion-icon name="play-forward" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
           </div>
-          <div style="display:flex; flex-direction: row; align-items: flex-start;">
+          <div style="display:flex; flex-direction: row; align-items: center; justify-content: flex-start;">
             <ion-icon name="{player.volume > 75? "volume-high" : player.volume > 25? "volume-medium" : player.volume > 0? "volume-low" : "volume-off"}" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
-            <input type="range" class="volume" min=0 max=100 bind:value={player.volume} on:input={player.vol}/>
+            <input type="range" class="volume" min=0 max=100 bind:value={volume} on:input={() => player.setVolume(volume)}/>
+            <button class="interactiveIconBackground" on:click={() => player.toggleRepeat()} title="toggle-repeat">
+            {#if repeat}
+            <ion-icon style="color:{fontColorStr}; font-size:{fontSize + 14}px;" name="refresh-circle"></ion-icon>
+            {:else}
+            <ion-icon style="color:{fontColorStr}; font-size:{fontSize + 14}px;" name="refresh-circle-outline"></ion-icon>
+            {/if}
+            </button>
           </div>
+
           
         </div>
         
@@ -1064,7 +1139,7 @@
         <!-- Logout -->
         {#if showLogoutButton}
         <button on:click={logout} class="interactiveIconBackground" style="display:flex;" title="logout">
-          <ion-icon name="log-out-outline" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+          <ion-icon name="log-out-outline" style="color:#f00; font-size:{fontSize + 14}px;"></ion-icon>
         </button>
         {/if}
         <button on:click={toggleLibrary} class="interactiveIconBackground" style="display:flex;" title="open-library">
@@ -1082,7 +1157,7 @@
     </div> -->
     <div style="display:flex; flex-direction: row">
       <ion-icon name="time" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
-      <input type="range" class="duration" min=0 max={player.nowPlaying.durationMs} bind:value={player.nowPlaying.progressMs} on:input={() => player.seek()}/>
+      <input type="range" class="duration" min=0 max={nowPlaying? nowPlaying.durationMs : player.nowPlaying.durationMs} bind:value={progress} on:input={() => player.seek(progress)}/>
     </div>
     {/if}
     
