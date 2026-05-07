@@ -6,14 +6,31 @@
 
 <script lang="ts">
 
+  const notPlaying: Song = {
+        "id": "",
+        "title": "Not Playing",
+        "artist": "N/A",
+        "album": "N/A",
+        "albumId": "",
+        "artworkUrl": "N/A",
+        "durationMs": -1,
+        "progressMs": 0,
+        "isPlaying": false,
+        "paused": true
+  }
+
   // Imports:
 
   import { platform } from "@tauri-apps/plugin-os";
 
   import {message} from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
+
+  // Provider API's
   import { Subsonic } from "../api/subsonic";
   import { type Playlist, type Album, type Song, type Player } from "../api/subsonic";
+
+  import { Spotify } from "../api/spotify";
 
   import { readFile, writeFile } from "../api/storage";
 
@@ -31,16 +48,12 @@
 
   // Settings Logo
   import settingsIcon_full from "../assets/icons/settings_full.png";
-
-  import { getSpotifyLoginUrl, exchangeCodeForTokens, getNowPlayingSpotify} from "../api/spotify";
-  import { listen } from "@tauri-apps/api/event";
+  
   import { onMount } from "svelte";
 
   ////////////////////////////////////////////////////////////////
   ///////////////////////// Helpful Stuff ////////////////////////
   ////////////////////////////////////////////////////////////////
-
-  const defaultTimeoutTime = 5000;
 
   async function showError(err: string) {
     await message(err, {title: "Error", kind:"error"})
@@ -79,8 +92,6 @@
   
   const appId = "com.ashstashp.nowplaying-app";
 
-  const spotifyKeyringId = "spotify-client-id";
-
   async function addKeyring(userId:string, token: string) {
     try {
     await invoke("store_user_token", {appId, userId, token})
@@ -109,17 +120,6 @@
     }
   }
 
-  async function getSpotifyClientId() {
-    try {
-    const userId = spotifyKeyringId;
-    CLIENT_ID = await invoke("get_user_token", {appId, userId})
-    }
-    catch (error) {
-      showError(error);
-      return null;
-    };
-  }
-
   //////////////////////////////////////////////////////////////
   ///////////////////////// Client Info ////////////////////////
   //////////////////////////////////////////////////////////////
@@ -132,16 +132,24 @@
 
   function logout() {
     selectProvider("");
-    player.unload();
+    try {
+      player.unload();
+    } catch{}
     loggedIn = false;
   }
 
   async function login() {
-    if (selectedProvider == "subsonic") {
-      if (autoLogin) {
-        writeFile("provider", "subsonic", "client");
-      } 
+    writeFile("provider", selectedProvider, "client");
+    console.log(selectedProvider)
+    if (autoLogin) {
+      if (unsecureKeyrings) {
+        saveUnsecureKeyrings();
+      } else if (currentPlatform == "windows" || currentPlatform == "macos") {
+        // saveSecureKeyrings();
+      }
+    }
 
+    if (selectedProvider == "subsonic") {
       if (version.trim() == "") {
         version = "1.16.1";
       }
@@ -153,7 +161,16 @@
       }
       console.log("User: "+ username);
       console.log()
-    } else {
+    } else if (selectedProvider == "spotify"){
+      writeFile("provider", "spotify", "client");
+
+      try {
+        connectSpotify();
+      } catch (e) {
+        console.log(e);
+        showWarn("Failed to login");
+      }
+    }else {
       showWarn("Provider Not Supported");
     }
   }
@@ -219,39 +236,25 @@
 
   let globalCode = null;
 
-  export function setSpotifySession(token: SpotifyToken) {
-    spotifyToken = token;
-  }
+  async function connectSpotify() {
 
-  async function spotifyNowPlaying() {
-    return await getNowPlayingSpotify(spotifyToken);
-  }
-
-
-  listen("spotify-oauth-callback", async (event) => {
-    const url = new URL(event.payload as string);
-    const code = url.searchParams.get("code");
-    globalCode = code;
-
-    if (code) {
-      spotifyToken = await asyncTimeout(exchangeCodeForTokens(code, CLIENT_ID), defaultTimeoutTime);
+    try {
+    player = new Spotify(CLIENT_ID)
+    } catch (e) {
+      showWarn(e);
+      logout();
     }
-  });
 
-  export async function connectSpotify() {
-
-    const url = await getSpotifyLoginUrl(CLIENT_ID);
-
-    await invoke("open_in_browser", { url });
     loggedIn = true;
   }
 
+  /*
   async function refreshSpotify() {
     if (autoLogin) {
       writeFile("provider", "spotify", "client");
     } 
 
-    let error = null;
+    let error: any = null;
     try {
       const result = await spotifyNowPlaying();
       player.nowPlaying = result;
@@ -269,7 +272,7 @@
         // Checks if error is not a Missing access token error
         if (!error.message.toLowerCase().includes("missing access token")){
           // "Restarts" app
-          player.nowPlaying = null;
+          player.nowPlaying = notPlaying;
           logout()
 
           // Exits loop
@@ -297,6 +300,7 @@
       showError(error.name + ": " + error.message);
     }
   }
+  */
 
   ///////////////////////////////////////////////////////////
   ///////////////////////// UI Stuff ////////////////////////
@@ -325,7 +329,7 @@
   }
 
   function updateVolBar() {
-    if (loggedIn) {
+    if (loggedIn && selectedProvider != "spotify") {
       let percent: number = player.stream.volume * 100;
 
       if (!percent) {
@@ -386,28 +390,96 @@
   /////////////////////////////////////////////////////////////////
   ///////////////////////// Settings Stuff ////////////////////////
   /////////////////////////////////////////////////////////////////
+
+  const appVersion = "v1.0.0-pre_release";
+
+  // Artsize + Fontsize
   let artSize = 200;
   let fontSize = 16;
-  let showSettings = false;
-  let showLogoutButton = true;
+
+  // Auto login and show progress bar
   let autoLogin = false;
   let displayProgress = true;
-  let showAlbumArt = true;
-  let showAttribution = false;
-  const appVersion = "v1.0.0-pre_release";
+  
+  // Platform and verification
   let currentPlatform = "unknown"; 
   let acceptedTos = false;
+  let showVoidTosWarn = false;
 
+  // Show Settings
+  let showSettings = false;
+  let showExperimental = false;
+
+  // Toggable Elements
+  let showLogoutButton = true;
+  let showAlbumArt = true;
+  let showAttribution = false;
+
+  // Unsecure Keyrings
+  let unsecureKeyrings = false; // Stores keychains unsecurley - for Linux users mainly.
+
+  // Open pages
   async function openLegal() {
-    const url = "https://ashstashp.com/legal.html"
-
-    await invoke("open_in_browser", { url });
+    open("https://ashstashp.com/legal.html")
   }
 
   async function open(url: string) {
     await invoke("open_in_browser", { url });
   }
 
+  // Secure Keyrings
+  async function saveSecureKeyrings() {
+    try {
+      if (currentPlatform == "windows" || currentPlatform == "macos") {
+        if (selectedProvider == "subsonic") {
+          await addKeyring("subsonic-server", subsonicUrl);
+          await addKeyring("subsonic-user", username);
+          await addKeyring("subsonic-password", password);
+          await addKeyring("subsonic-version", version);
+        } else if (selectedProvider == "spotify"){
+          await addKeyring("spotify-client-id", CLIENT_ID)
+        } else {
+          throw new Error("Provider missing or not supported");
+        }
+      } else {
+        throw new Error("Platform not supported.")
+      }
+    } catch(e) {
+      showWarn(e);
+    }
+  }
+
+  async function loadSecureKeyrings() {
+    try {
+      if (currentPlatform == "windows" || currentPlatform == "macos") {
+        if (selectedProvider == "subsonic") {
+          subsonicUrl = await getPassword("subsonic-server");
+          username = await getPassword("subsonic-user");
+          password = await getPassword("subsonic-password");
+          version = await getPassword("subsonic-version");
+        } else if (selectedProvider == "spotify") {
+          await getPassword("spotify-client-id");
+        } else {
+          throw new Error("Provider not found");
+        }
+      } else {
+        throw new Error("Platform not supported");
+      }
+    } catch(e) {
+      showWarn(e);
+    }
+  }
+
+  async function clearSecureKeyings() {
+    await deletePassword("subsonic-server");
+    await deletePassword("subsonic-user");
+    await deletePassword("subsonic-password");
+    await deletePassword("subsonic-version");
+    await deletePassword("subsonic-server");
+    await deletePassword("spotify-client-id");
+  }
+
+  // Tos stuff
   async function acceptTos() {
     acceptedTos = true;
     await writeFile("tos", acceptedTos.toString(), "legal");
@@ -420,7 +492,7 @@
   }
 
   
-  // Toggle Logout Button Visibility
+  // Toggle Elements
   function toggleShowLogoutButton() {
     showLogoutButton = !showLogoutButton;
   }
@@ -443,6 +515,14 @@
     showSettings = !showSettings;
   }
 
+  function toggleExperimental() {
+    showExperimental = !showExperimental;
+  }
+
+  function toggleShowAlbumArt() {
+    showAlbumArt = !showAlbumArt
+  }
+
   // Increases and Decreases Album Art size (default = 50px)
   function incArtSize() {
     artSize++;
@@ -461,6 +541,64 @@
     if (fontSize - 1 >= 1) fontSize--;
   }
 
+  // Experimental Settings Logic
+  function toggleUnsecureKeyrings() {
+    unsecureKeyrings =! unsecureKeyrings;
+    if (unsecureKeyrings) {
+      saveUnsecureKeyrings();
+    } else {
+      clearUnsecureKeyrings();
+    }
+  }
+
+  async function loadUnsecureKeyrings() {
+    try {
+      if (selectedProvider == "subsonic") {
+        subsonicUrl = await readFile("url", "experimental/unsecure_keyrings/subsonic");
+        username = await readFile("username", "experimental/unsecure_keyrings/subsonic");
+        password = await readFile("password", "experimental/unsecure_keyrings/subsonic");
+        version = await readFile("version", "experimental/unsecure_keyrings/subsonic");
+        console.log(subsonicUrl);
+      } else if (selectedProvider == "spotify") {
+        CLIENT_ID = await readFile("client_id", "experimental/unsecure_keyrings/spotify");
+      } else if (selectedProvider == "") {
+        throw new Error("No Provider Listed")
+      } else {
+        throw new Error("Provider not supported");
+      }
+    } catch(e) {
+      showWarn(e);
+    }
+  }
+
+  async function clearUnsecureKeyrings() {
+    await writeFile("url", "", "experimental/unsecure_keyrings/subsonic");
+    await writeFile("username", "", "experimental/unsecure_keyrings/subsonic");
+    await writeFile("password", "", "experimental/unsecure_keyrings/subsonic");
+    await writeFile("version", "", "experimental/unsecure_keyrings/subsonic");
+    await writeFile("client_id", "", "experimental/unsecure_keyrings/spotify")
+  }
+
+  async function saveUnsecureKeyrings() {
+    try {
+      if (selectedProvider == "subsonic") {
+        await writeFile("url", subsonicUrl.toString(), "experimental/unsecure_keyrings/subsonic");
+        await writeFile("username", username.toString(), "experimental/unsecure_keyrings/subsonic");
+        await writeFile("password", password.toString(), "experimental/unsecure_keyrings/subsonic");
+        await writeFile("version", version.toString(), "experimental/unsecure_keyrings/subsonic");
+        console.log(subsonicUrl);
+      } else if (selectedProvider == "spotify") {
+        await writeFile("client_id", CLIENT_ID.toString(), "experimental/unsecure_keyrings/spotify")
+      } else {
+        clearUnsecureKeyrings();
+        throw new Error("Provider not found.")
+      }
+    } catch(e) {
+      showWarn(e);
+    }
+  }
+
+  // Restore defaults
   function restoreDefaults() {
     showLogoutButton = true;
     fontSize = 16;
@@ -469,9 +607,11 @@
     displayProgress = true;
     showAlbumArt = true;
     showAttribution = false;
+    unsecureKeyrings = false;
     updateSettingsFiles();
   }
 
+  // Save and Discard settings
   function saveSettings() {
     updateSettingsFiles();
     toggleSettings();
@@ -481,34 +621,33 @@
     loadSettingsFiles();
     toggleSettings();
   }
-  function toggleShowAlbumArt() {
-    showAlbumArt = !showAlbumArt
-  }
 
+  // Autologin logic
   async function runAutoLogin() {
     // Incase of errors cause yk-
     try {
       // Gets provider
       selectedProvider = await readFile("provider", "client")
+      console.log("Selected Provider: " +selectedProvider);
       // Checks if provider is spotify
-      if (selectedProvider == "spotify") {
-        // Gets spotify client ID (keyring)
-        await getSpotifyClientId();
-        // Connects to spotify
-        await connectSpotify();
-      } 
-      // Checks if provider is subsonic
-      else if (selectedProvider == "subsonic") {
-        // Gets subsonic URL, username, and password (keyrings)
-        subsonicUrl = await getPassword("subsonic-server");
-        username = await getPassword("subsonic-user");
-        password = await getPassword("subsonic-password");
-        version = await getPassword("subsonic-version");
-
-        // Connects to subsonic
-        await connectSubsonic();
+      if (unsecureKeyrings) {
+        await loadUnsecureKeyrings();
+        if (selectedProvider == "spotify") {
+          await connectSpotify();
+        } else if (selectedProvider == "subsonic") {
+          await connectSubsonic();
+        } else {
+          throw new Error("Provider not supported or listed.")
+        }
       } else {
-        throw Error("INVALID_PROVIDER");
+        loadSecureKeyrings();
+        if (selectedProvider == "spotify") {
+          await connectSpotify();
+        } else if (selectedProvider == "subsonic") {
+          await connectSubsonic();
+        } else {
+          throw Error("INVALID_PROVIDER");
+        }
       }
     } catch(err) {
       showError("Auto Login Failed:\n" + err);
@@ -516,6 +655,7 @@
     }
   }
 
+  // Update and load settings from AppData
   async function updateSettingsFiles() {
     await writeFile("fontSize", fontSize.toString(), "settings");
     await writeFile("artSize", artSize.toString(), "settings");
@@ -524,6 +664,7 @@
     await writeFile("displayProgress", displayProgress.toString(), "settings");
     await writeFile("showAlbumArt", showAlbumArt.toString(), "settings");
     await writeFile("showAttribution", showAttribution.toString(), "settings");
+    await writeFile("unsecureKeyrings", unsecureKeyrings.toString(), "settings/experimental")
   }
 
   async function loadSettingsFiles() {
@@ -571,13 +712,21 @@
     } else {
       acceptedTos = false;
     }
+
+    const whatUnsecureKeyrings = await readFile("unsecureKeyrings", "settings/experimental");
+    if (whatUnsecureKeyrings == "true" || whatUnsecureKeyrings == "truee") {
+      unsecureKeyrings = true;
+    } else {
+      unsecureKeyrings = false;
+    }
   }
 
+  // Waits till mount (for linux mainly)
   onMount(async () => {
     try {
       currentPlatform = await platform();
       await loadSettingsFiles();
-      if (autoLogin && (currentPlatform == "windows" || currentPlatform == "macos")) {
+      if (autoLogin && (currentPlatform == "windows" || currentPlatform == "macos" || unsecureKeyrings == true)) {
         if (acceptedTos) {
           await runAutoLogin();
         }
@@ -688,7 +837,9 @@
   let progress = 0;
 
   setInterval(checkTime, 1);
-  setInterval(updateVolBar, 1);
+  if (selectedProvider == "subsonic") {
+    setInterval(updateVolBar, 1);
+  }
 
   ///////////////////////////////////////////////////////////////
   ///////////////////////// Progress Bar ////////////////////////
@@ -716,6 +867,9 @@
 <!------------------- Settings Screen -------------------->
 <!-------------------------------------------------------->
 {#snippet settings()}
+  {#if showExperimental}
+    {@render experimentals()}
+  {:else}
   <div class="loginContainer">
 
     <!-- Font/Iocn Size -->
@@ -763,7 +917,7 @@
     <h1 style="font-size: {fontSize + 16}px">Album Art:</h1>
     {#if showAlbumArt == true}
     <!-- Album Art Size -->
-    <div style="display:flex; flex-direction: row; align-items: center; justify-content: center;">
+    <div style="display:flex; flex-direction: s-clienrow; align-items: center; justify-content: center;">
       <button class="interactiveIconBackground" on:click={decArtSize} title="decrease-art-size">
         <ion-icon style="color:{fontColorStr}; font-size:{fontSize+14}px" name="remove-circle"></ion-icon>
       </button>
@@ -804,7 +958,7 @@
       <h1 style="font-size: {fontSize + 16}px">QOL Features:</h1>
       <button class="button" style="font-size: {fontSize}px; display:flex; flex-direction: row; justify-content: space-between;" on:click={toggleAutoLogin}>
         <p style="font-size: {fontSize}px; test-align:left;">Auto Login:</p>
-        <p style="font-size: {fontSize}px; color: {currentPlatform == "windows" || currentPlatform == "macos"? autoLogin? "#0f0" : "#f00" : "#f00"};">{currentPlatform == "windows" || currentPlatform == "macos"? autoLogin : "Unavailable"}</p>
+        <p style="font-size: {fontSize}px; color: {unsecureKeyrings == true || currentPlatform == "windows" || currentPlatform == "macos"? autoLogin? "#0f0" : "#f00" : "#f00"};">{unsecureKeyrings == true || currentPlatform == "windows" || currentPlatform == "macos"? autoLogin : "Unavailable"}</p>
       </button>
       <button class="button" style="font-size: {fontSize}px; display:flex; flex-direction: row; justify-content: space-between;" on:click={toggleDisplayProgress}>
         <p style="font-size: {fontSize}px; test-align:left;">Display Progress Bar:</p>
@@ -815,6 +969,10 @@
         <p style="font-size: {fontSize}px; color: {showAttribution? "#0f0" : "#f00"};">{showAttribution}</p>
       </button>
     </div>
+
+    <br>
+    <!-- Show Experimental Settings -->
+    <button class="button" style="font-size: {fontSize}px" on:click={toggleExperimental}>Open Experimental Settings</button>
 
     <br>
     <!-- Current App Version -->
@@ -832,6 +990,23 @@
     <button class="button" style="font-size: {fontSize}px" on:click={saveSettings}>Save and Exit</button>
     <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={discardSettings}>Discard Changes</button>
     <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={voidTos}>Void TOS</button>
+  </div>
+  {/if}
+{/snippet}
+
+{#snippet experimentals()}
+  <div class="loginContainer">
+    <!-- Unsecure Keyrings -->
+     <h1 style="font-size: {fontSize + 16}px">Experimental Settings:</h1>
+    <div style="display:flex; flex-direction: column;">
+      <button class="button" style="font-size: {fontSize}px; display:flex; flex-direction: row; justify-content: space-between;" on:click={toggleUnsecureKeyrings}>
+        <p style="font-size: {fontSize}px; test-align:left;">Unsecure Keyrings:</p>
+        <p style="font-size: {fontSize}px; color: {unsecureKeyrings? "#0f0" : "#f00"};">{unsecureKeyrings}</p>
+      </button>
+    </div>
+
+    <br>
+    <button class="button" style="font-size: {fontSize}px" on:click={toggleExperimental}>Return</button>
   </div>
 {/snippet}
 
@@ -1016,10 +1191,10 @@
         <input style="font-size: {fontSize}px" bind:value={CLIENT_ID} placeholder="Enter your Client ID"/>
         <button class="button" style="font-size: {fontSize}px; background-color: #1ED760" type="submit">Login</button>
       </form>
-      {#if currentPlatform == "windows" || currentPlatform == "macos"}
-        <button class="button" style="font-size: {fontSize}px" on:click={() => {addKeyring(spotifyKeyringId, CLIENT_ID)}}>Save Client ID</button>
-        <button class="button" style="font-size: {fontSize}px" on:click={getSpotifyClientId}>Load Client ID</button>
-        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {deletePassword(spotifyKeyringId)}}>Delete Saved Client ID</button>
+      {#if currentPlatform == "windows" || currentPlatform == "macos" || unsecureKeyrings}
+        <button class="button" style="font-size: {fontSize}px" on:click={unsecureKeyrings? saveUnsecureKeyrings : saveSecureKeyrings}>Save Client ID</button>
+        <button class="button" style="font-size: {fontSize}px" on:click={unsecureKeyrings? loadUnsecureKeyrings : loadSecureKeyrings}>Load Client ID</button>
+        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={unsecureKeyrings? clearUnsecureKeyrings : clearSecureKeyings}>Delete Saved Client ID</button>
       {:else}
         <p class="button" style="font-size:{fontSize}px;">Keyrings are not supported for your OS.</p>
       {/if}
@@ -1036,23 +1211,10 @@
         <input style="font-size: {fontSize}px" type="password" bind:value={password} placeholder="Enter your Password"/>
         <button class="button" style="font-size: {fontSize}px" type="submit">Login</button>
       </form>
-      {#if currentPlatform == "windows" || currentPlatform == "macos"}
-        <button class="button" style="font-size: {fontSize}px" on:click={() => {
-          addKeyring("subsonic-server", subsonicUrl);
-          addKeyring("subsonic-user", username);
-          addKeyring("subsonic-password", password);
-          addKeyring("subsonic-version", version)}}>Save Subsonic Login</button>
-        <button class="button" style="font-size: {fontSize}px" on:click={() => {
-            getPassword("subsonic-server").then(url => subsonicUrl = url);
-            getPassword("subsonic-user").then(user => username = user);
-            getPassword("subsonic-password").then(pass => password = pass);
-            getPassword("subsonic-version").then(ver => version = ver);
-        }}>Load Subsonic Login</button>
-        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {
-          deletePassword("subsonic-server");
-          deletePassword("subsonic-user");
-          deletePassword("subsonic-password");
-          deletePassword("subsonic-version");}}>Delete Subsonic Login
+      {#if currentPlatform == "windows" || currentPlatform == "macos" || unsecureKeyrings}
+        <button class="button" style="font-size: {fontSize}px" on:click={unsecureKeyrings? saveUnsecureKeyrings : saveSecureKeyrings}>Save Subsonic Login</button>
+        <button class="button" style="font-size: {fontSize}px" on:click={unsecureKeyrings? loadUnsecureKeyrings : loadSecureKeyrings}>Load Subsonic Login</button>
+        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={unsecureKeyrings? clearUnsecureKeyrings : clearSecureKeyings}>Delete Subsonic Login
         </button>
       {:else}
         <p class="button" style="font-size:{fontSize}px;">Keyrings are not supported for your OS.</p>
@@ -1120,7 +1282,9 @@
           </div>
           <div style="display:flex; flex-direction: row; align-items: center; justify-content: flex-start;">
             <ion-icon name="{player.volume > 75? "volume-high" : player.volume > 25? "volume-medium" : player.volume > 0? "volume-low" : "volume-off"}" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
+            {#if selectedProvider == "subsonic"}
             <input type="range" class="volume" min=0 max=100 bind:value={volume} on:input={() => player.setVolume(volume)}/>
+            {/if}
             <button class="interactiveIconBackground" on:click={() => player.toggleRepeat()} title="toggle-repeat">
             {#if repeat}
             <ion-icon style="color:{fontColorStr}; font-size:{fontSize + 14}px;" name="refresh-circle"></ion-icon>

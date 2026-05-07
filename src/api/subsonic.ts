@@ -21,7 +21,7 @@ export class Subsonic implements Player {
         "artist": "N/A",
         "album": "N/A",
         "albumId": "",
-        "artworkUrl": fallback,
+        "artworkUrl": "N/A",
         "durationMs": -1,
         "progressMs": 0,
         "isPlaying": false,
