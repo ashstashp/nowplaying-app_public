@@ -100,7 +100,7 @@
     }
   }
 
-  async function getPassword(userId: string): Promise<string | null> {
+  export async function getPassword(userId: string): Promise<string | null> {
     try {
     const response:string = await invoke("get_user_token", {appId, userId})
     return response;
@@ -141,13 +141,6 @@
   async function login() {
     writeFile("provider", selectedProvider, "client");
     console.log(selectedProvider)
-    if (autoLogin) {
-      if (unsecureKeyrings) {
-        saveUnsecureKeyrings();
-      } else if (currentPlatform == "windows" || currentPlatform == "macos") {
-        // saveSecureKeyrings();
-      }
-    }
 
     if (selectedProvider == "subsonic") {
       if (version.trim() == "") {
@@ -158,6 +151,9 @@
       } catch(e) {
         console.log(e);
         showWarn("Failed to login");
+        logout();
+        console.log(selectedProvider);
+        console.log(loggedIn);
       }
       console.log("User: "+ username);
       console.log()
@@ -169,9 +165,18 @@
       } catch (e) {
         console.log(e);
         showWarn("Failed to login");
+        logout();
       }
     }else {
       showWarn("Provider Not Supported");
+    }
+
+    if (autoLogin) {
+      if (unsecureKeyrings) {
+        saveUnsecureKeyrings();
+      } else if (currentPlatform == "windows" || currentPlatform == "macos") {
+        saveSecureKeyrings();
+      }
     }
   }
 
@@ -206,13 +211,13 @@
 
   async function connectSubsonic() {
     try {
-      loggedIn = true;
       player = new Subsonic(username, password, subsonicUrl, version);
       await player.loadPlaylists();
       await player.loadAlbums();
       selectedPlaylist = player.playlists[0];
       selectedAlbum = player.albums[0];
       setInterval(() => {if (player) {nowPlaying = player.nowPlaying; repeat = player.repeat}}, 100)
+      loggedIn = true;
     } catch(e) {
       logout();
       showError(e);
@@ -226,20 +231,14 @@
 
   let CLIENT_ID = "";
 
-  interface SpotifyToken {
-    access_token: string;
-    refresh_token?: string;
-    expires_at?: number;
-  }
-
-  let spotifyToken: SpotifyToken | null = null;
-
   let globalCode = null;
 
   async function connectSpotify() {
 
     try {
-    player = new Spotify(CLIENT_ID)
+    player = new Spotify(CLIENT_ID);
+    setInterval(() => {if (player) {nowPlaying = player.nowPlaying; repeat = player.repeat}}, 100)
+    loggedIn = true;
     } catch (e) {
       showWarn(e);
       logout();
@@ -315,15 +314,12 @@
   let secondaryColorStr = "rgba(0, 0, 0, 0.5)";
 
   function updateProgressBar() {
-    let percent: number = (player.nowPlaying.progressMs / player.nowPlaying.durationMs) * 100;
-
-    if (!percent) {
+    let percent = 0;
+    if (player) {
+      percent = (player.nowPlaying.progressMs / player.nowPlaying.durationMs) * 100;
+    } else {
       percent = 0;
     }
-
-    // console.log(percent);
-    // console.log(progress);
-    // console.log(player.stream.currentTime);
 
     document.documentElement.style.setProperty("--dur-ptc", percent + "%")
   }
@@ -391,7 +387,7 @@
   ///////////////////////// Settings Stuff ////////////////////////
   /////////////////////////////////////////////////////////////////
 
-  const appVersion = "v1.0.0-pre_release";
+  const appVersion = "v1.0.0-beta";
 
   // Artsize + Fontsize
   let artSize = 200;
@@ -415,9 +411,6 @@
   let showAlbumArt = true;
   let showAttribution = false;
 
-  // Unsecure Keyrings
-  let unsecureKeyrings = false; // Stores keychains unsecurley - for Linux users mainly.
-
   // Open pages
   async function openLegal() {
     open("https://ashstashp.com/legal.html")
@@ -425,6 +418,59 @@
 
   async function open(url: string) {
     await invoke("open_in_browser", { url });
+  }
+
+  // Unsecure Keyrings
+  let unsecureKeyrings = false; // Stores keychains unsecurley - for Linux users mainly.
+
+  async function loadUnsecureKeyrings() {
+    try {
+      if (selectedProvider == "subsonic") {
+        subsonicUrl = await readFile("subsonic-url", "experimental/unsecure_keyrings");
+        username = await readFile("subsonic-username", "experimental/unsecure_keyrings");
+        password = await readFile("subsonic-password", "experimental/unsecure_keyrings");
+        version = await readFile("subsonic-version", "experimental/unsecure_keyrings");
+        console.log(subsonicUrl);
+      } else if (selectedProvider == "spotify") {
+        CLIENT_ID = await readFile("spotifyclient_id", "experimental/unsecure_keyrings");
+      } else if (selectedProvider == "") {
+        throw new Error("No Provider Listed")
+      } else {
+        throw new Error("Provider not supported");
+      }
+    } catch(e) {
+      showWarn(e);
+    }
+    // console.log("loaded unsecure keyrings");
+  }
+
+  async function clearUnsecureKeyrings() {
+    await writeFile("subsonic-url", "", "experimental/unsecure_keyrings");
+    await writeFile("subsonic-username", "", "experimental/unsecure_keyrings");
+    await writeFile("subsonic-password", "", "experimental/unsecure_keyrings");
+    await writeFile("subsonic-version", "", "experimental/unsecure_keyrings");
+    await writeFile("spotify-client_id", "", "experimental/unsecure_keyrings");
+    // console.log("cleared unsecure keyrings");
+  }
+
+  async function saveUnsecureKeyrings() {
+    try {
+      if (selectedProvider == "subsonic") {
+        await writeFile("subsonic-url", subsonicUrl.toString(), "experimental/unsecure_keyrings");
+        await writeFile("subsonic-username", username.toString(), "experimental/unsecure_keyrings");
+        await writeFile("subsonic-password", password.toString(), "experimental/unsecure_keyrings");
+        await writeFile("subsonic-version", version.toString(), "experimental/unsecure_keyrings");
+        console.log(subsonicUrl);
+      } else if (selectedProvider == "spotify") {
+        await writeFile("spotifyclient_id", CLIENT_ID.toString(), "experimental/unsecure_keyrings")
+      } else {
+        clearUnsecureKeyrings();
+        throw new Error("Provider not found.")
+      }
+    } catch(e) {
+      showWarn(e);
+    }
+    // console.log("saved unsecure keyrings");
   }
 
   // Secure Keyrings
@@ -447,6 +493,7 @@
     } catch(e) {
       showWarn(e);
     }
+    // console.log("Saved secure keyrings");
   }
 
   async function loadSecureKeyrings() {
@@ -458,7 +505,7 @@
           password = await getPassword("subsonic-password");
           version = await getPassword("subsonic-version");
         } else if (selectedProvider == "spotify") {
-          await getPassword("spotify-client-id");
+          CLIENT_ID = await getPassword("spotify-client-id");
         } else {
           throw new Error("Provider not found");
         }
@@ -468,6 +515,7 @@
     } catch(e) {
       showWarn(e);
     }
+    // console.log("loaded secure keyrings");
   }
 
   async function clearSecureKeyings() {
@@ -477,6 +525,7 @@
     await deletePassword("subsonic-version");
     await deletePassword("subsonic-server");
     await deletePassword("spotify-client-id");
+    // console.log("cleared secure keyrings");
   }
 
   // Tos stuff
@@ -551,53 +600,6 @@
     }
   }
 
-  async function loadUnsecureKeyrings() {
-    try {
-      if (selectedProvider == "subsonic") {
-        subsonicUrl = await readFile("url", "experimental/unsecure_keyrings/subsonic");
-        username = await readFile("username", "experimental/unsecure_keyrings/subsonic");
-        password = await readFile("password", "experimental/unsecure_keyrings/subsonic");
-        version = await readFile("version", "experimental/unsecure_keyrings/subsonic");
-        console.log(subsonicUrl);
-      } else if (selectedProvider == "spotify") {
-        CLIENT_ID = await readFile("client_id", "experimental/unsecure_keyrings/spotify");
-      } else if (selectedProvider == "") {
-        throw new Error("No Provider Listed")
-      } else {
-        throw new Error("Provider not supported");
-      }
-    } catch(e) {
-      showWarn(e);
-    }
-  }
-
-  async function clearUnsecureKeyrings() {
-    await writeFile("url", "", "experimental/unsecure_keyrings/subsonic");
-    await writeFile("username", "", "experimental/unsecure_keyrings/subsonic");
-    await writeFile("password", "", "experimental/unsecure_keyrings/subsonic");
-    await writeFile("version", "", "experimental/unsecure_keyrings/subsonic");
-    await writeFile("client_id", "", "experimental/unsecure_keyrings/spotify")
-  }
-
-  async function saveUnsecureKeyrings() {
-    try {
-      if (selectedProvider == "subsonic") {
-        await writeFile("url", subsonicUrl.toString(), "experimental/unsecure_keyrings/subsonic");
-        await writeFile("username", username.toString(), "experimental/unsecure_keyrings/subsonic");
-        await writeFile("password", password.toString(), "experimental/unsecure_keyrings/subsonic");
-        await writeFile("version", version.toString(), "experimental/unsecure_keyrings/subsonic");
-        console.log(subsonicUrl);
-      } else if (selectedProvider == "spotify") {
-        await writeFile("client_id", CLIENT_ID.toString(), "experimental/unsecure_keyrings/spotify")
-      } else {
-        clearUnsecureKeyrings();
-        throw new Error("Provider not found.")
-      }
-    } catch(e) {
-      showWarn(e);
-    }
-  }
-
   // Restore defaults
   function restoreDefaults() {
     showLogoutButton = true;
@@ -628,7 +630,7 @@
     try {
       // Gets provider
       selectedProvider = await readFile("provider", "client")
-      console.log("Selected Provider: " +selectedProvider);
+      // console.log("Selected Provider: " +selectedProvider);
       // Checks if provider is spotify
       if (unsecureKeyrings) {
         await loadUnsecureKeyrings();
@@ -640,7 +642,7 @@
           throw new Error("Provider not supported or listed.")
         }
       } else {
-        loadSecureKeyrings();
+        await loadSecureKeyrings();
         if (selectedProvider == "spotify") {
           await connectSpotify();
         } else if (selectedProvider == "subsonic") {
@@ -821,16 +823,20 @@
 
       }
     }
-    else if (player.nowPlaying.isPlaying) {
+    else if (selectedProvider == "subsonic" && player && player.nowPlaying.isPlaying) {
       // console.log(player.nowPlaying.progressMs);
       progress = player.nowPlaying.progressMs;
       if (player.stream.currentTime >= player.stream.duration) {
         player.nextSong();
         progress = 0;
       }
-      updateProgressBar();
     }
-    progress += 1;
+    if (player && player.stream) {
+      progress += 1;
+    } else {
+      progress = player? player.nowPlaying.progressMs : 0;
+    }
+    updateProgressBar();
   }
 
   let volume = 100;
@@ -1192,9 +1198,9 @@
         <button class="button" style="font-size: {fontSize}px; background-color: #1ED760" type="submit">Login</button>
       </form>
       {#if currentPlatform == "windows" || currentPlatform == "macos" || unsecureKeyrings}
-        <button class="button" style="font-size: {fontSize}px" on:click={unsecureKeyrings? saveUnsecureKeyrings : saveSecureKeyrings}>Save Client ID</button>
-        <button class="button" style="font-size: {fontSize}px" on:click={unsecureKeyrings? loadUnsecureKeyrings : loadSecureKeyrings}>Load Client ID</button>
-        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={unsecureKeyrings? clearUnsecureKeyrings : clearSecureKeyings}>Delete Saved Client ID</button>
+        <button class="button" style="font-size: {fontSize}px" on:click={() => {unsecureKeyrings? saveUnsecureKeyrings() : saveSecureKeyrings()}}>Save Client ID</button>
+        <button class="button" style="font-size: {fontSize}px" on:click={() => {unsecureKeyrings? loadUnsecureKeyrings() : loadSecureKeyrings()}}>Load Client ID</button>
+        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {unsecureKeyrings? clearUnsecureKeyrings() : clearSecureKeyings()}}>Delete Saved Client ID</button>
       {:else}
         <p class="button" style="font-size:{fontSize}px;">Keyrings are not supported for your OS.</p>
       {/if}
@@ -1212,9 +1218,9 @@
         <button class="button" style="font-size: {fontSize}px" type="submit">Login</button>
       </form>
       {#if currentPlatform == "windows" || currentPlatform == "macos" || unsecureKeyrings}
-        <button class="button" style="font-size: {fontSize}px" on:click={unsecureKeyrings? saveUnsecureKeyrings : saveSecureKeyrings}>Save Subsonic Login</button>
-        <button class="button" style="font-size: {fontSize}px" on:click={unsecureKeyrings? loadUnsecureKeyrings : loadSecureKeyrings}>Load Subsonic Login</button>
-        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={unsecureKeyrings? clearUnsecureKeyrings : clearSecureKeyings}>Delete Subsonic Login
+        <button class="button" style="font-size: {fontSize}px" on:click={() => {unsecureKeyrings? saveUnsecureKeyrings() : saveSecureKeyrings()}}>Save Subsonic Login</button>
+        <button class="button" style="font-size: {fontSize}px" on:click={() => {unsecureKeyrings? loadUnsecureKeyrings() : loadSecureKeyrings()}}>Load Subsonic Login</button>
+        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {unsecureKeyrings? clearUnsecureKeyrings() : clearSecureKeyings()}}>Delete Subsonic Login
         </button>
       {:else}
         <p class="button" style="font-size:{fontSize}px;">Keyrings are not supported for your OS.</p>
@@ -1272,7 +1278,7 @@
               <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
             {:else}
-            <button on:click={() => {player.play("NTt3W8F4HVUawr5QsFLN8a")}} class="interactiveIconBackground" title="Play">
+            <button on:click={() => {selectedProvider == "subsonic"? player.play("NTt3W8F4HVUawr5QsFLN8a") : player.resume()}} class="interactiveIconBackground" title="Play">
               <ion-icon name="play" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
             </button>
             {/if}
@@ -1281,8 +1287,9 @@
             </button>
           </div>
           <div style="display:flex; flex-direction: row; align-items: center; justify-content: flex-start;">
+            {#if player && selectedProvider == "subsonic"}
             <ion-icon name="{player.volume > 75? "volume-high" : player.volume > 25? "volume-medium" : player.volume > 0? "volume-low" : "volume-off"}" style="color:{fontColorStr}; font-size:{fontSize + 14}px;"></ion-icon>
-            {#if selectedProvider == "subsonic"}
+
             <input type="range" class="volume" min=0 max=100 bind:value={volume} on:input={() => player.setVolume(volume)}/>
             {/if}
             <button class="interactiveIconBackground" on:click={() => player.toggleRepeat()} title="toggle-repeat">

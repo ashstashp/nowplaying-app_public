@@ -383,6 +383,7 @@ export interface Player {
   loadPlaylists(): void;
   loadAlbums(): void;
   makeQueue(list: Playlist | Album): void;
+  addToQueue?(id: string): void;
   shuffleQueue(): void;
   clearQueue(): void;
   play(id: string): void;

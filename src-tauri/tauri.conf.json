@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "NowPlaying App",
-        "width": 800,
-        "height": 300,
+        "width": 850,
+        "height": 400,
         "transparent": true
       }
     ],

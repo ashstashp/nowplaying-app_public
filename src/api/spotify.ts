@@ -31,6 +31,9 @@ export class Spotify implements Player {
   access_token:string | null = "";
   codeVerifier = "";
   expires_in = 0;
+  device_id: string = "";
+  loaded_song_id:string = "";
+  runNowPlaying = setInterval(() => {this.refreshNowPlaying();}, 3000)
 
   async asyncTimeout<T>(promise: Promise<T>, time:number): Promise<T> {
     return Promise.race([
@@ -42,6 +45,10 @@ export class Spotify implements Player {
 
   constructor(CLIENT_ID: string) {
     this.CLIENT_ID = CLIENT_ID
+    if (this.CLIENT_ID == "") {
+      console.log(CLIENT_ID);
+      throw new Error("Client ID Not Found");
+    }
     let login = async() => {
       try {
         console.log("Refresh Token Found. Requesting Access Token")
@@ -79,6 +86,9 @@ export class Spotify implements Player {
           }
         });
       }
+
+      await this.refreshNowPlaying();
+      // this.runNowPlaying;
     }
     login();
   }
@@ -96,7 +106,7 @@ export class Spotify implements Player {
       redirect_uri: REDIRECT_URI,
       code_challenge_method: "S256",
       code_challenge: pkce.codeChallenge,
-      scope: "user-read-currently-playing user-read-playback-state"
+      scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state"
     });
 
     // console.log("PARAMS: " + params)
@@ -130,36 +140,82 @@ export class Spotify implements Player {
 
   async refreshToken() {
 
-   // refresh token that has been previously stored
-   const refreshToken = (this.refresh_token != ""? this.refresh_token : await readFile("spotify_refresh", "client"));
-   const url = "https://accounts.spotify.com/api/token";
+    try {
+    // refresh token that has been previously stored
+    const refreshToken = (this.refresh_token != ""? this.refresh_token : await readFile("spotify_refresh", "client"));
+    console.log(refreshToken);
+    const url = "https://accounts.spotify.com/api/token";
 
-    const payload = {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: this.CLIENT_ID
-      }),
+      const payload = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: this.CLIENT_ID,
+        }),
+      }
+
+      console.log(payload)
+      const body = await fetch(url, payload);
+      const response = await body.json();
+
+      console.log(response);
+
+      if (!body.ok) {
+        throw new Error("Error Refreshing Token: " + response.error);
+      }
+
+      console.log("Refresh Successful");
+      this.access_token = response.access_token;
+      this.expires_in = response.expires_in;
+      if (response.refresh_token) {
+        this.refresh_token = response.refresh_token;
+        await writeFile("spotify_refresh", this.refresh_token, "client");
+      }
+    } catch(e) {
+      console.log(e);
+      this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
     }
-    const body = await fetch(url, payload);
-    const response = await body.json();
+  }
 
-    console.log(response);
+  // Device ID and Song ID (VERY IMPORTANT PLEASE KEEP)
+  async getPlaybackData() {
+    try {
+      const res = await fetch(
+        "https://api.spotify.com/v1/me/player",
+        {headers: {
+          Authorization: `Bearer ${this.access_token}`
+        }}
+      );
 
-    if (!body.ok) {
-      throw new Error("Error Refreshing Token: " + response.error);
-    }
+      let data = await res.json();
 
-    console.log("Refresh Successful");
-    this.access_token = response.access_token;
-    this.expires_in = response.expires_in;
-    if (response.refresh_token) {
-      this.refresh_token = response.refresh_token;
-      await writeFile("spotify_refresh", this.refresh_token, "client");
+      if (data.repeat_state == "context") {
+        this.repeat = true;
+      } else {
+        this.repeat = false;
+        this.setRepeat();
+      }
+
+      // let device_data = data.device;
+
+      // this.device_id = device_data.id;
+
+      // this.loaded_song_id = this.nowPlaying.id;
+      // console.log(this.loaded_song_id);
+      // console.log(this.device_id);
+    } catch(e) {
+      if (e.message == "Invalid access token") {
+        if (this.refresh_token == "") {
+          this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+        } else {
+          this.refreshToken();
+        }
+        this.getPlaybackData();
+      }
     }
   }
 
@@ -167,93 +223,264 @@ export class Spotify implements Player {
   ///// Now Playing /////
   ///////////////////////
 
-  async getNowPlayingSpotify(): Promise<Song> {
+  async refreshNowPlaying() {
     if (this.access_token == "") {
-      if (this.refresh_token != "") {
-        this.refreshToken();
+      if (this.refresh_token == "") {
+        await this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
       } else {
-        this.exchangeCodeForTokens(this.code, this.CLIENT_ID)
+        await this.refreshToken();
       }
     }
 
-    const res = await fetch(
-      "https://api.spotify.com/v1/me/player/currently-playing",
-      {
-        headers: {
-          Authorization: `Bearer ${this.access_token}`
+    try {
+      const res = await fetch(
+        "https://api.spotify.com/v1/me/player/currently-playing",
+        {
+          headers: {
+            Authorization: `Bearer ${this.access_token}`
+          }
         }
+      );
+      let data;
+      if (res.status === 204) {
+        // data = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false}
       }
-    );
-    let data;
-    if (res.status === 204) {
-      data = {id: "0", title: "Not Playing", artist: "N/A", album: "N/A", artworkUrl: "N/A", durationMs: 0, progressMs: -1, isPlaying: false}
-    }
-    else {
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Spotify error ${res.status}: ${text.slice(0, 100)}`);
+      else {
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Spotify error ${res.status}: ${text.slice(0, 100)}`);
+        }
+        try {
+          data = await res.json();
+          // console.log(data);
+          const id = data.item? data.item.id : "0";
+          const title = data.item? data.item.name : "Not Playing";
+          const artist = data.item? data.item.artists.map((a: any) => a.name).join(", ") : "N/A";
+          const album = data.item? data.item.album.name : "N/A";
+          const artworkUrl = data.item? data.item.album.images[0].url : "N/A";
+          const durationMs = data.item? data.item.duration_ms : 0;
+          const progressMs = data.item? data.progress_ms : -1;
+          const isPlaying = data.item? data.is_playing : false;
+          const nowPlaying: Song = {
+            id: id, 
+            title: title, 
+            artist: artist, 
+            album: album,
+            albumId: "",
+            durationMs: durationMs,
+            progressMs: progressMs,
+            artworkUrl: artworkUrl,
+            isPlaying: isPlaying,
+            paused: false
+          };
+
+          this.nowPlaying = nowPlaying;
+
+          // console.log(this.nowPlaying);
+        } catch (err) {
+          console.log(err);
+          data = null;
+          this.nowPlaying = this.notPlaying;
+        }
+        // console.log(this.nowPlaying);
       }
-
-      console.log(res);
-      try {
-        data = await res.json();
-      } catch (err) {
-        console.log(err);
-        data = null;
-        return this.notPlaying;
+      this.getPlaybackData();
+    } catch(e) {
+      if (e.message == "Invalid access token") {
+        if (this.refresh_token == "") {
+          this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+        } else {
+          this.refreshToken();
+        }
+        this.refreshNowPlaying();
       }
     }
-
-    const id = "0";
-    const title = data.item? data.item.name : "Not Playing";
-    const artist = data.item? data.item.artists.map((a: any) => a.name).join(", ") : "N/A";
-    const album = data.item? data.item.album.name : "N/A";
-    const artworkUrl = data.item? data.item.album.images[0].url : "N/A";
-    const durationMs = data.item? data.item.duration_ms : 0;
-    const progressMs = data.item? data.progress_ms : -1;
-    const isPlaying = data.item? data.is_playing : false;
-    const nowPlaying: Song = {
-      id: id, 
-      title: title, 
-      artist: artist, 
-      album: album,
-      albumId: "",
-      durationMs: durationMs,
-      progressMs: progressMs,
-      artworkUrl: artworkUrl,
-      isPlaying: isPlaying,
-      paused: false
-    }
-
-    console.log(nowPlaying);
-
-    return nowPlaying;
-
-    // return {
-    //   title: data.item.name,
-    //   artist: data.item.artists.map((a: any) => a.name).join(", "),
-    //   album: data.item.album.name,
-    //   artworkUrl: data.item.album.images[0]?.url ?? "",
-    //   durationMs: data.item.duration_ms,
-    //   progressMs: data.progress_ms,
-    //   isPlaying: data.is_playing
-    // };
   }
 
   loadPlaylists() {};
   loadAlbums() {};
   makeQueue(list: Playlist | Album) {};
+  addToQueue(id: string) {
+    //'https://api.spotify.com/v1/me/player/queue?uri=spotify%3Atrack%3A4iV5W9uYEdYUVa79Axb7Rh'
+  };
+  findSong(name: string) {}
+  verifySong(id: string) {
+    
+  }
   shuffleQueue() {};
   clearQueue() {};
-  play(id: string) {};
-  pause() {};
-  resume() {};
-  prevSong() {};
-  nextSong() {};
+  async play(id: string) {
+    /*--data '{
+    "context_uri": "spotify:album:5ht7ItJgpBH7W6vJ5BqpPr",
+    "offset": {
+        "position": 5
+    },*/
+    try {
+      const res = await fetch("https://api.spotify.com/v1/me/player/play", 
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${this.access_token}`,
+            Content_Type: 'application/json',
+          },
+          body: JSON.stringify({
+            uris: [`spotify:track:${id}`] // Specify the song URI
+          }),
+          
+        }
+      )
+    } catch(e) {
+      if (e.message == "Invalid access token") {
+        if (this.refresh_token == "") {
+          this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+        } else {
+          this.refreshToken();
+        }
+        this.pause();
+      }
+    }
+  };
+  async pause() {
+    try {
+      const res = await fetch("https://api.spotify.com/v1/me/player/pause", 
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${this.access_token}`
+          }
+        }
+      )
+    } catch(e) {
+      if (e.message == "Invalid access token") {
+        if (this.refresh_token == "") {
+          this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+        } else {
+          this.refreshToken();
+        }
+        this.pause();
+      }
+    }
+  };
+  async resume() {
+    try {
+      const res = await fetch("https://api.spotify.com/v1/me/player/play", 
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${this.access_token}`
+          }
+        }
+      )
+    } catch(e) {
+      if (e.message == "Invalid access token") {
+        if (this.refresh_token == "") {
+          this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+        } else {
+          this.refreshToken();
+        }
+        this.pause();
+      }
+    }
+  };
+  async prevSong() {
+    try {
+      const res = await fetch("https://api.spotify.com/v1/me/player/previous", 
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.access_token}`
+          }
+        }
+      )
+      this.refreshNowPlaying();
+    } catch(e) {
+      if (e.message == "Invalid access token") {
+        if (this.refresh_token == "") {
+          this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+        } else {
+          this.refreshToken();
+        }
+        this.pause();
+      }
+    }
+  };
+  async nextSong() {
+    try {
+      const res = await fetch("https://api.spotify.com/v1/me/player/next", 
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.access_token}`
+          }
+        }
+      )
+      this.refreshNowPlaying();
+    } catch(e) {
+      if (e.message == "Invalid access token") {
+        if (this.refresh_token == "") {
+          this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+        } else {
+          this.refreshToken();
+        }
+        this.pause();
+      }
+    }
+  };
   unload() {};
-  seek(time: number) {};
+  async seek(time: number) {
+    // try {
+    //   const res = await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${time}`, 
+    //     {
+    //       method: "PUT",
+    //       headers: {
+    //         Authorization: `Bearer ${this.access_token}`
+    //       }
+    //     }
+    //   )
+    // } catch(e) {
+    //   if (e.message == "Invalid access token") {
+    //     if (this.refresh_token == "") {
+    //       this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+    //     } else {
+    //       this.refreshToken();
+    //     }
+    //     this.pause();
+    //   }
+    // }
+  };
   setVolume(volume: number) {};
-  toggleRepeat() {};
+  async toggleRepeat() {
+    if (this.repeat) {
+      await this.setRepeat();
+    } else {
+      await this.setRepeat("context");
+    }
+    this.getPlaybackData();
+  };
+
+  async setRepeat(state:string = "off") {
+    //`https://api.spotify.com/v1/me/player/repeat?state=context`
+
+    try {
+      const res = await fetch(`https://api.spotify.com/v1/me/player/repeat?state=${state}`, 
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${this.access_token}`
+          }
+        }
+      )
+    } catch(e) {
+      if (e.message == "Invalid access token") {
+        if (this.refresh_token == "") {
+          this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+        } else {
+          this.refreshToken();
+        }
+        this.pause();
+      }
+    }
+  }
 }
 
 const REDIRECT_URI = "http://127.0.0.1:1420/callback";
