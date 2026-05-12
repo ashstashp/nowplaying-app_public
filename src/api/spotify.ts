@@ -3,6 +3,7 @@ import { writeFile, readFile } from "./storage";
 import type { Song, Player, Album, Playlist } from "./subsonic";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import {message} from "@tauri-apps/plugin-dialog";
 
 export class Spotify implements Player {
   CLIENT_ID = "";
@@ -35,6 +36,8 @@ export class Spotify implements Player {
   loaded_song_id:string = "";
   runNowPlaying = setInterval(() => {this.refreshNowPlaying();}, 3000)
 
+  market:string = "";
+
   async asyncTimeout<T>(promise: Promise<T>, time:number): Promise<T> {
     return Promise.race([
       promise,
@@ -43,8 +46,9 @@ export class Spotify implements Player {
     ]);
   }
 
-  constructor(CLIENT_ID: string) {
+  constructor(CLIENT_ID: string, market: string) {
     this.CLIENT_ID = CLIENT_ID
+    this.market = market;
     if (this.CLIENT_ID == "") {
       console.log(CLIENT_ID);
       throw new Error("Client ID Not Found");
@@ -58,6 +62,7 @@ export class Spotify implements Player {
       }
       if (this.refresh_token != "") {
         await this.refreshToken();
+        await this.loadPlaylists();
         setInterval(this.refreshToken, 3600*1000);
       }
       else {
@@ -82,6 +87,7 @@ export class Spotify implements Player {
             console.log(this.refresh_token);
             console.log(this.expires_in);
             await writeFile("spotify_refresh", this.refresh_token, "client");
+            await this.loadPlaylists();
             setInterval(this.refreshToken, 3600*1000);
           }
         });
@@ -106,7 +112,7 @@ export class Spotify implements Player {
       redirect_uri: REDIRECT_URI,
       code_challenge_method: "S256",
       code_challenge: pkce.codeChallenge,
-      scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state"
+      scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state playlist-read-private"
     });
 
     // console.log("PARAMS: " + params)
@@ -143,7 +149,7 @@ export class Spotify implements Player {
     try {
     // refresh token that has been previously stored
     const refreshToken = (this.refresh_token != ""? this.refresh_token : await readFile("spotify_refresh", "client"));
-    console.log(refreshToken);
+    // console.log(refreshToken);
     const url = "https://accounts.spotify.com/api/token";
 
       const payload = {
@@ -158,11 +164,11 @@ export class Spotify implements Player {
         }),
       }
 
-      console.log(payload)
+      // console.log(payload)
       const body = await fetch(url, payload);
       const response = await body.json();
 
-      console.log(response);
+      // console.log(response);
 
       if (!body.ok) {
         throw new Error("Error Refreshing Token: " + response.error);
@@ -297,16 +303,140 @@ export class Spotify implements Player {
     }
   }
 
-  loadPlaylists() {};
-  loadAlbums() {};
+  async loadPlaylists() {
+    try {
+      console.log("Loading Playlists");
+      const res = await fetch("https://api.spotify.com/v1/me/playlists?offset=0",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${this.access_token}`
+          }
+        }
+      );
+      // console.log(res);
+      
+      // console.log("Getting Data")
+      const data = await res.json();
+      // console.log(data);
+      // console.log(data.items.length)
+      for (let i = 0; i < data.items.length; i++) {
+        const item = data.items[i];
+        // console.log("i: " + i)
+        // console.log("Data:");
+        // console.log(data.items);
+        // console.log("Item:")
+        // console.log(item);
+        const newPlaylist: Playlist = {
+          "id": item.id,
+          "artworkUrl": item.images[0].url,
+          "title": item.name,
+          "comment": "",
+          "songs": []
+        }
+        // console.log(data);
+        this.playlists = [...this.playlists, newPlaylist]
+        // console.log(this.playlists);
+      }
+      await this.getPlaylistSongs();
+      console.log("Load Successful");
+    } catch (e) {
+      if (e.message == "Invalid access token") {
+        console.log("Load Failed");
+        if (this.refresh_token == "") {
+          this.exchangeCodeForTokens(this.code, this.CLIENT_ID);
+        } else {
+          this.refreshToken();
+        }
+        this.loadPlaylists();
+      }
+    }
+  };
+
+  async getPlaylistSongs() {
+    for (const i in this.playlists) {
+      const id = this.playlists[i].id
+      // console.log(id);
+
+      const res = await fetch(`https://api.spotify.com/v1/playlists/${id}`, {
+        method:"GET",
+        headers: {
+          Authorization: `Bearer ${this.access_token}`
+        }
+      });
+      const data = await res.json();
+      // console.log(data);
+      for (const e in data.items.items) {
+        const item = data.items.items[e].item;
+        // console.log(item);
+        if (item.is_playable) {
+          this.playlists[i].songs = [...this.playlists[i].songs, await this.getSongData(item.id)]
+        } else {
+          console.log("Not Playable");
+        }
+      }
+    }
+  }
+
+  async getSongData(id: string): Promise<Song> {
+
+    try{
+      const res = await fetch("https://api.spotify.com/v1/tracks/"+id, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.access_token}`
+        }
+      });
+
+      const data = await res.json()
+      // console.log(data);
+      let artists:string = "";
+      for (const i in data.artists) {
+        artists += data.artists[i].name + " ";
+      }
+
+      const newSong: Song = {
+        "id": data.id,
+        "title": data.name,
+        "album": data.album.name,
+        "albumId": data.album.id,
+        "artworkUrl": data.album.images[0].url,
+        "artist": artists,
+        "durationMs": data.duration_ms,
+        "progressMs": 0,
+        "paused": false,
+        "isPlaying": false,
+      }
+
+      return newSong;
+    }catch(e){
+      return this.notPlaying;
+    }
+  }
+
+  loadAlbums() {
+
+  };
+
   makeQueue(list: Playlist | Album) {};
+
   addToQueue(id: string) {
     //'https://api.spotify.com/v1/me/player/queue?uri=spotify%3Atrack%3A4iV5W9uYEdYUVa79Axb7Rh'
   };
-  findSong(name: string) {}
-  verifySong(id: string) {
-    
+  findSong(name: string) {
+
   }
+
+  verifySong(id: string) {
+    try {
+      this.getSongData(id);
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   shuffleQueue() {};
   clearQueue() {};
   async play(id: string) {
@@ -316,19 +446,36 @@ export class Spotify implements Player {
         "position": 5
     },*/
     try {
-      const res = await fetch("https://api.spotify.com/v1/me/player/play", 
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${this.access_token}`,
-            Content_Type: 'application/json',
-          },
-          body: JSON.stringify({
-            uris: [`spotify:track:${id}`] // Specify the song URI
-          }),
-          
-        }
-      )
+      let res;
+      if (this.verifySong(id)) {
+        res = await fetch("https://api.spotify.com/v1/me/player/play", 
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${this.access_token}`,
+              "Content-Type": 'application/json',
+            },
+            body: JSON.stringify({
+              uris: [`spotify:track:${id}`] // Specify the song URI
+            }),
+            
+          }
+        )
+      } else {
+        res = await fetch("https://api.spotify.com/v1/me/player/play", 
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${this.access_token}`,
+              "Content-Type": 'application/json',
+            },
+            body: JSON.stringify({
+              uris: [`spotify:playlist:${id}`] // Specify the song URI
+            }),
+            
+          }
+        )
+      }
     } catch(e) {
       if (e.message == "Invalid access token") {
         if (this.refresh_token == "") {
@@ -337,6 +484,8 @@ export class Spotify implements Player {
           this.refreshToken();
         }
         this.pause();
+      } else {
+        showWarn(e);
       }
     }
   };
@@ -487,4 +636,12 @@ const REDIRECT_URI = "http://127.0.0.1:1420/callback";
 
 async function open(url: string) {
   await invoke("open_in_browser", { url });
+}
+
+async function showError(err: string) {
+    await message(err, {title: "Error", kind:"error"})
+  }
+
+async function showWarn(err: string) {
+  await message(err, {title: "Warning", kind:"warning"})
 }

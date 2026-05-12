@@ -230,14 +230,17 @@
   ////////////////////////////////////////////////////////////////
 
   let CLIENT_ID = "";
+  let market = "";
 
   let globalCode = null;
 
   async function connectSpotify() {
 
     try {
-    player = new Spotify(CLIENT_ID);
+    player = new Spotify(CLIENT_ID, market);
     setInterval(() => {if (player) {nowPlaying = player.nowPlaying; repeat = player.repeat}}, 100)
+    // await player.loadPlaylists();
+    selectedPlaylist = player.playlists[0];
     loggedIn = true;
     } catch (e) {
       showWarn(e);
@@ -1027,7 +1030,7 @@
         <h2>{playlist.title}</h2>
         <p>{playlist.comment}</p>
       </div>
-      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(playlist); player.play(player.queue[0])}} title="Play Playlist">
+      <button class="interactiveIconBackground" on:click={() => {player.makeQueue(playlist); selectedProvider == "subsonic"? player.play(player.queue[0]): player.play(playlist.id)}} title="Play Playlist">
         <ion-icon name="play-circle" style="color:{fontColorStr}; font-size:{fontSize + 14}px; align-self:center; justify-self:flex-end;"></ion-icon>
       </button>
       <button class="interactiveIconBackground" on:click={() => {player.makeQueue(playlist); player.shuffleQueue(); player.play(player.queue[0])}} title="Play Playlist">
@@ -1098,9 +1101,9 @@
   {:else}
   <div class="loginContainer">
     <h1>Library</h1>
-    {#if selectedProvider == "spotify"}
+    <!-- {#if selectedProvider == "spotify"}
       <h2>Spotify is currently not supported</h2>
-    {:else}
+    {:else} -->
       <h2>Playlists:</h2>
         {#each player.playlists as playlist}
           <button style="background: transparent; border-color:rgba(0, 0, 0, 0)" on:click={() => {setSelectedPlaylist(playlist); togglePlaylist()}}>
@@ -1125,7 +1128,7 @@
             </div>
           </button>
         {/each}
-    {/if}
+    <!-- {/if} -->
     <button class="button" style="font-size: {fontSize}px" on:click={toggleLibrary}>Close</button>
   </div>
   {/if}
@@ -1194,13 +1197,15 @@
     <div class="loginContainer">
       <h1 style="color: #f90"><ion-icon name="warning"></ion-icon> Warning: Spotify Premium Required! <ion-icon name="warning"></ion-icon></h1>
       <form on:submit={login} style="display: flex; flex-direction: column;">
-        <input style="font-size: {fontSize}px" bind:value={CLIENT_ID} placeholder="Enter your Client ID"/>
+        <input required style="font-size: {fontSize}px" bind:value={CLIENT_ID} placeholder="Enter your Client ID"/>
+        <input maxlength="2" style="font-size: {fontSize}px" bind:value={market} placeholder="Market/Country Code (i.g USA -> US) *NOT REQUIRED*"/>
+        <button class="button" style="font-size: {fontSize}px; background-color: {mainColorStr}" on:click={() => open("https://www.spotify.com/account/overview/")} type="button">Find Market!</button>
         <button class="button" style="font-size: {fontSize}px; background-color: #1ED760" type="submit">Login</button>
       </form>
       {#if currentPlatform == "windows" || currentPlatform == "macos" || unsecureKeyrings}
-        <button class="button" style="font-size: {fontSize}px" on:click={() => {unsecureKeyrings? saveUnsecureKeyrings() : saveSecureKeyrings()}}>Save Client ID</button>
-        <button class="button" style="font-size: {fontSize}px" on:click={() => {unsecureKeyrings? loadUnsecureKeyrings() : loadSecureKeyrings()}}>Load Client ID</button>
-        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {unsecureKeyrings? clearUnsecureKeyrings() : clearSecureKeyings()}}>Delete Saved Client ID</button>
+        <button class="button" style="font-size: {fontSize}px" on:click={() => {unsecureKeyrings? saveUnsecureKeyrings() : saveSecureKeyrings()}}>Save Spotify Login</button>
+        <button class="button" style="font-size: {fontSize}px" on:click={() => {unsecureKeyrings? loadUnsecureKeyrings() : loadSecureKeyrings()}}>Load Spotify Login</button>
+        <button class="button" style="font-size: {fontSize}px; color: #f00;" on:click={() => {unsecureKeyrings? clearUnsecureKeyrings() : clearSecureKeyings()}}>Delete Saved Spotify Login</button>
       {:else}
         <p class="button" style="font-size:{fontSize}px;">Keyrings are not supported for your OS.</p>
       {/if}
@@ -1211,10 +1216,10 @@
   {:else if selectedProvider == "subsonic"}
     <div class="loginContainer" >
       <form on:submit={login} style="display: flex; flex-direction: column;">
-        <input style="font-size: {fontSize}px" bind:value={subsonicUrl} placeholder="Enter your Server URL"/>
-        <input style="font-size: {fontSize}px" bind:value={version} placeholder="Enter your Server Version (Default is 1.16.1)"/>
-        <input style="font-size: {fontSize}px" bind:value={username} placeholder="Enter your Username"/>
-        <input style="font-size: {fontSize}px" type="password" bind:value={password} placeholder="Enter your Password"/>
+        <input required style="font-size: {fontSize}px" bind:value={subsonicUrl} placeholder="Enter your Server URL"/>
+        <input required style="font-size: {fontSize}px" bind:value={version} placeholder="Enter your Server Version (Default is 1.16.1)"/>
+        <input required style="font-size: {fontSize}px" bind:value={username} placeholder="Enter your Username"/>
+        <input required style="font-size: {fontSize}px" type="password" bind:value={password} placeholder="Enter your Password"/>
         <button class="button" style="font-size: {fontSize}px" type="submit">Login</button>
       </form>
       {#if currentPlatform == "windows" || currentPlatform == "macos" || unsecureKeyrings}
@@ -1253,7 +1258,7 @@
           {#if selectedProvider == "spotify"}
             <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px;"/>
           {/if}
-          {#if showAlbumArt == true && (nowPlaying? nowPlaying.isPlaying == true : player.nowPlaying.isPlaying)}
+          {#if showAlbumArt == true && (nowPlaying? nowPlaying.isPlaying == true : player.nowPlaying.isPlaying == true)}
           <img class="albumCover" style="height:{artSize}px; width:{artSize}px;" src={(nowPlaying? (nowPlaying.artworkUrl? nowPlaying.artworkUrl : "N/A"): (player.nowPlaying.artworkUrl? player.nowPlaying.artworkUrl : "N/A"))} alt={`Cover art for ${(nowPlaying? nowPlaying.title : player.nowPlaying.title)} by ${nowPlaying? nowPlaying.artist : player.nowPlaying.artist}`} />
           {:else if showAlbumArt == true}
           <ion-icon name="musical-note-outline" style="font-size:{artSize}px; color:{fontColorStr}"></ion-icon>
