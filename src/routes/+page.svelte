@@ -140,7 +140,7 @@
 
   async function login() {
     writeFile("provider", selectedProvider, "client");
-    console.log(selectedProvider)
+    // console.log(selectedProvider)
 
     if (selectedProvider == "subsonic") {
       if (version.trim() == "") {
@@ -153,10 +153,10 @@
         showWarn("Failed to login");
         logout();
         console.log(selectedProvider);
-        console.log(loggedIn);
+        // console.log(loggedIn);
       }
-      console.log("User: "+ username);
-      console.log()
+      // console.log("User: "+ username);
+      // console.log()
     } else if (selectedProvider == "spotify"){
       writeFile("provider", "spotify", "client");
 
@@ -211,12 +211,25 @@
 
   async function connectSubsonic() {
     try {
+      // Connect
       player = new Subsonic(username, password, subsonicUrl, version);
+      // Playlists and Albums
       await player.loadPlaylists();
       await player.loadAlbums();
       selectedPlaylist = player.playlists[0];
       selectedAlbum = player.albums[0];
+
+      // Repeat
       setInterval(() => {if (player) {nowPlaying = player.nowPlaying; repeat = player.repeat}}, 100)
+      // player.setVolume(50);
+      
+      // Volume
+      await player.setVolume(Number(await readFile("volume", "playback")));
+      // console.log("LOADED VOLUME: " + player.volume);
+      volume = await player.volume;
+      setInterval(updateVolBar, 1);
+      setInterval(updatePlaybackData, 10000)
+
       loggedIn = true;
     } catch(e) {
       logout();
@@ -327,8 +340,10 @@
     document.documentElement.style.setProperty("--dur-ptc", percent + "%")
   }
 
-  function updateVolBar() {
+  async function updateVolBar() {
     if (loggedIn && selectedProvider != "spotify") {
+      // console.log("Updating Volume Bar");
+      // console.log("Done?");
       let percent: number = player.stream.volume * 100;
 
       if (!percent) {
@@ -336,9 +351,13 @@
       }
 
       // console.log(percent);
-
       document.documentElement.style.setProperty("--vol-ptc", percent + "%")
     }
+  }
+
+  async function updatePlaybackData() {
+    await writeFile("volume", player.volume.toString(), "playback"); 
+    // console.log("Playback Data Updated");
   }
 
   function updateColors() {
@@ -390,7 +409,7 @@
   ///////////////////////// Settings Stuff ////////////////////////
   /////////////////////////////////////////////////////////////////
 
-  const appVersion = "v1.0.0-beta";
+  const appVersion = "v1.0.0";
 
   // Artsize + Fontsize
   let artSize = 200;
@@ -433,7 +452,7 @@
         username = await readFile("subsonic-username", "experimental/unsecure_keyrings");
         password = await readFile("subsonic-password", "experimental/unsecure_keyrings");
         version = await readFile("subsonic-version", "experimental/unsecure_keyrings");
-        console.log(subsonicUrl);
+        // console.log(subsonicUrl);
       } else if (selectedProvider == "spotify") {
         CLIENT_ID = await readFile("spotifyclient_id", "experimental/unsecure_keyrings");
       } else if (selectedProvider == "") {
@@ -463,7 +482,7 @@
         await writeFile("subsonic-username", username.toString(), "experimental/unsecure_keyrings");
         await writeFile("subsonic-password", password.toString(), "experimental/unsecure_keyrings");
         await writeFile("subsonic-version", version.toString(), "experimental/unsecure_keyrings");
-        console.log(subsonicUrl);
+        // console.log(subsonicUrl);
       } else if (selectedProvider == "spotify") {
         await writeFile("spotifyclient_id", CLIENT_ID.toString(), "experimental/unsecure_keyrings")
       } else {
@@ -778,8 +797,8 @@
 
   function toggleLibrary() {
     showLibrary = !showLibrary;
-    console.log(player.playlists);
-    console.log(player.albums);
+    // console.log(player.playlists);
+    // console.log(player.albums);
   };
 
   function togglePlaylist() {

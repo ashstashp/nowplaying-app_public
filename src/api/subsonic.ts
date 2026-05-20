@@ -3,6 +3,7 @@
 import axios from "axios";
 
 import fallback from "../assets/icons/musical-note-outline.svg";
+import { writeFile } from "./storage";
 
 export class Subsonic implements Player {
     // Client Info
@@ -367,9 +368,9 @@ export class Subsonic implements Player {
 
     setVolume(vol: number) {
       this.volume = vol;
-      console.log(this.volume);
+      // console.log(vol);
       this.stream.volume = this.volume/100;
-      console.log(this.stream.volume);
+      // console.log(this.stream.volume);
     }
 }
 
