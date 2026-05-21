@@ -36,7 +36,7 @@ export class Spotify implements Player {
   loaded_song_id:string = "";
   runNowPlaying = setInterval(() => {this.refreshNowPlaying();}, 3000)
 
-  market:string = "";
+  // market:string = "";
 
   async asyncTimeout<T>(promise: Promise<T>, time:number): Promise<T> {
     return Promise.race([
@@ -46,9 +46,9 @@ export class Spotify implements Player {
     ]);
   }
 
-  constructor(CLIENT_ID: string, market: string) {
+  constructor(CLIENT_ID: string, market?: string) {
     this.CLIENT_ID = CLIENT_ID
-    this.market = market;
+    // this.market = market;
     if (this.CLIENT_ID == "") {
       console.log(CLIENT_ID);
       throw new Error("Client ID Not Found");

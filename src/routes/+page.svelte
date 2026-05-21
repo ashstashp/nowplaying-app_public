@@ -243,14 +243,14 @@
   ////////////////////////////////////////////////////////////////
 
   let CLIENT_ID = "";
-  let market = "";
+  // let market = "";
 
   let globalCode = null;
 
   async function connectSpotify() {
 
     try {
-    player = new Spotify(CLIENT_ID, market);
+    player = new Spotify(CLIENT_ID);
     setInterval(() => {if (player) {nowPlaying = player.nowPlaying; repeat = player.repeat}}, 100)
     // await player.loadPlaylists();
     selectedPlaylist = player.playlists[0];
@@ -1043,6 +1043,9 @@
 <!----------------------------------------------------------->
 {#snippet playlist(playlist: Playlist)}
   <div class="loginContainer">
+    {#if selectedProvider == "spotify"}
+      <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px; height: {50+fontSize}px;"/>
+    {/if}
     <div style="display:flex; flex-direction: row; padding: 20px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
       <img class="albumCover" style="height:{artSize*(3/4)}px; width:{artSize*(3/4)}px; margin-right: 10px;" src={playlist.artworkUrl} alt="Playlist Artwork"/>
       <div style="display:flex; flex-direction: column; align-items:center; justify-content: center;">
@@ -1077,6 +1080,9 @@
 
 {#snippet album(album: Album)}
   <div class="loginContainer">
+    {#if selectedProvider == "spotify"}
+      <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px; height: {50+fontSize}px;"/>
+    {/if}
     <div style="display:flex; flex-direction: row; padding: 20px; background-color:{mainColorStr}; border-radius:8px; margin: 10px;">
       <img class="albumCover" style="height:{artSize*(3/4)}px; width:{artSize*(3/4)}px; margin-right: 10px;" src={album.artworkUrl} alt="Playlist Artwork"/>
       <div style="display:flex; flex-direction: column; align-items:center; justify-content: center;">
@@ -1119,10 +1125,11 @@
     {@render album(selectedAlbum)}
   {:else}
   <div class="loginContainer">
-    <h1>Library</h1>
-    <!-- {#if selectedProvider == "spotify"}
-      <h2>Spotify is currently not supported</h2>
-    {:else} -->
+    {#if selectedProvider != "spotify"}
+        <h1>Library</h1>
+    {:else}
+          <img src={spotify_full_green} alt="Spotify Logo" style="margin: 5px; height: {50+fontSize}px;"/>
+    {/if}
       <h2>Playlists:</h2>
         {#each player.playlists as playlist}
           <button style="background: transparent; border-color:rgba(0, 0, 0, 0)" on:click={() => {setSelectedPlaylist(playlist); togglePlaylist()}}>
@@ -1217,8 +1224,8 @@
       <h1 style="color: #f90"><ion-icon name="warning"></ion-icon> Warning: Spotify Premium Required! <ion-icon name="warning"></ion-icon></h1>
       <form on:submit={login} style="display: flex; flex-direction: column;">
         <input required style="font-size: {fontSize}px" bind:value={CLIENT_ID} placeholder="Enter your Client ID"/>
-        <input maxlength="2" style="font-size: {fontSize}px" bind:value={market} placeholder="Market/Country Code (i.g USA -> US) *NOT REQUIRED*"/>
-        <button class="button" style="font-size: {fontSize}px; background-color: {mainColorStr}" on:click={() => open("https://www.spotify.com/account/overview/")} type="button">Find Market!</button>
+        <!-- <input maxlength="2" style="font-size: {fontSize}px" bind:value={market} placeholder="Market/Country Code (i.g USA -> US) *NOT REQUIRED*"/> -->
+        <!-- <button class="button" style="font-size: {fontSize}px; background-color: {mainColorStr}" on:click={() => open("https://www.spotify.com/account/overview/")} type="button">Find Market!</button> -->
         <button class="button" style="font-size: {fontSize}px; background-color: #1ED760" type="submit">Login</button>
       </form>
       {#if currentPlatform == "windows" || currentPlatform == "macos" || unsecureKeyrings}
